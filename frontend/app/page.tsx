@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SearchBar } from "@/components/SearchBar";
 import { AnswerDisplay } from "@/components/AnswerDisplay";
 import { ImageViewer } from "@/components/ImageViewer";
@@ -41,9 +41,34 @@ export default function Home() {
     answer: string;
   } | null>(null);
 
-  // History state
+  // History state - persisted to localStorage
   const [history, setHistory] = useState<Inquiry[]>([]);
   const [currentInquiryId, setCurrentInquiryId] = useState<string | null>(null);
+
+  // Load history from localStorage on mount
+  useEffect(() => {
+    const savedHistory = localStorage.getItem("ace-it-history");
+    if (savedHistory) {
+      try {
+        const parsed = JSON.parse(savedHistory);
+        // Convert timestamp strings back to Date objects
+        const restored = parsed.map((item: Inquiry) => ({
+          ...item,
+          timestamp: new Date(item.timestamp),
+        }));
+        setHistory(restored);
+      } catch (e) {
+        console.error("Failed to load history:", e);
+      }
+    }
+  }, []);
+
+  // Save history to localStorage whenever it changes
+  useEffect(() => {
+    if (history.length > 0) {
+      localStorage.setItem("ace-it-history", JSON.stringify(history));
+    }
+  }, [history]);
 
   const generateQuiz = async (
     question: string,
@@ -232,6 +257,7 @@ export default function Home() {
   const handleClearHistory = () => {
     setHistory([]);
     setCurrentInquiryId(null);
+    localStorage.removeItem("ace-it-history");
   };
 
   return (
