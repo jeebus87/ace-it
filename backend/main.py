@@ -11,11 +11,12 @@ image = modal.Image.debian_slim(python_version="3.11").pip_install(
     "google-genai",
     "ddgs",
     "pydantic",
+    "fastapi[standard]",
 )
 
 
 @app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")])
-@modal.web_endpoint(method="POST")
+@modal.fastapi_endpoint(method="POST")
 def search(data: dict) -> dict:
     """Search the web using DuckDuckGo."""
     from search import perform_search
@@ -24,7 +25,7 @@ def search(data: dict) -> dict:
 
 
 @app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")])
-@modal.web_endpoint(method="POST")
+@modal.fastapi_endpoint(method="POST")
 def generate(data: dict) -> dict:
     """Generate an answer using Gemini."""
     from llm import generate_answer
@@ -34,7 +35,7 @@ def generate(data: dict) -> dict:
 
 
 @app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")])
-@modal.web_endpoint(method="POST")
+@modal.fastapi_endpoint(method="POST")
 def image_gen(data: dict) -> dict:
     """Generate an educational image using Gemini."""
     from image_gen import generate_image
@@ -44,7 +45,7 @@ def image_gen(data: dict) -> dict:
 
 
 @app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")])
-@modal.web_endpoint(method="POST")
+@modal.fastapi_endpoint(method="POST")
 def quiz(data: dict) -> dict:
     """Generate a 10-question mastery quiz."""
     from quiz import generate_quiz
