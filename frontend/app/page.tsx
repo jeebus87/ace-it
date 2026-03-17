@@ -7,7 +7,7 @@ import { ImageViewer } from "@/components/ImageViewer";
 import { QuizModal } from "@/components/QuizModal";
 import { DifficultyPrompt } from "@/components/DifficultyPrompt";
 import { HistorySidebar, Inquiry } from "@/components/HistorySidebar";
-import { GraduationCap, Sparkles } from "lucide-react";
+import { GraduationCap, Sparkles, ImageOff } from "lucide-react";
 
 interface Question {
   id: number;
@@ -208,12 +208,15 @@ export default function Home() {
           generatedImage = imageData.image;
           setImage(generatedImage);
           console.log("Image generated successfully");
-          setImageStatus("success");
+          setImageStatus("");
+        } else if (imageData.reason === "FinishReason.PROHIBITED_CONTENT") {
+          console.log("Image blocked due to content policy");
+          setImageStatus("content-blocked");
         } else if (imageData.error) {
           console.error("Image generation error:", imageData.error);
-          setImageStatus("error: " + imageData.error);
+          setImageStatus("error");
         } else {
-          setImageStatus("no-data");
+          setImageStatus("");
           console.warn("Image response missing image data:", imageData);
         }
       } catch (imageError) {
@@ -307,10 +310,15 @@ export default function Home() {
       {/* Image */}
       {image && <ImageViewer src={image} />}
 
-      {/* Debug: Image Status */}
-      {imageStatus && !image && (
-        <div className="text-center text-sm text-[hsl(var(--muted-foreground))] mb-4">
-          Image status: {imageStatus}
+      {/* Image Status Message */}
+      {imageStatus === "content-blocked" && !image && (
+        <div className="max-w-2xl mx-auto mb-6">
+          <div className="flex items-center justify-center gap-3 p-4 rounded-xl bg-[hsl(var(--secondary))] border border-[hsl(var(--border))]">
+            <ImageOff className="w-5 h-5 text-[hsl(var(--muted-foreground))]" />
+            <p className="text-sm text-[hsl(var(--muted-foreground))]">
+              Visual couldn&apos;t be generated for this topic due to content restrictions.
+            </p>
+          </div>
         </div>
       )}
 
