@@ -53,7 +53,24 @@ Style: Clean, educational diagram or illustration. Use clear labels, simple shap
                         "success": True
                     }
 
-        return {"error": "No image generated", "success": False}
+        # Check for block reason or text response
+        block_reason = None
+        text_response = None
+        if response.candidates:
+            candidate = response.candidates[0]
+            if hasattr(candidate, "finish_reason"):
+                block_reason = str(candidate.finish_reason)
+            if candidate.content and candidate.content.parts:
+                for part in candidate.content.parts:
+                    if hasattr(part, "text") and part.text:
+                        text_response = part.text[:200]
+
+        return {
+            "error": "No image generated",
+            "reason": block_reason,
+            "text": text_response,
+            "success": False
+        }
 
     except Exception as e:
         return {"error": str(e), "success": False}
