@@ -37,23 +37,21 @@ Style: Clean, educational diagram or illustration. Use clear labels, simple shap
             model="gemini-3.1-flash-image-preview",
             contents=image_prompt,
             config=types.GenerateContentConfig(
-                response_modalities=["IMAGE", "TEXT"]
+                response_modalities=["IMAGE"]
             )
         )
 
         # Extract image from response
-        if response.candidates:
-            candidate = response.candidates[0]
-            if candidate.content and candidate.content.parts:
-                for part in candidate.content.parts:
-                    if hasattr(part, "inline_data") and part.inline_data:
-                        image_data = part.inline_data.data
-                        image_base64 = base64.b64encode(image_data).decode("utf-8")
-                        mime_type = part.inline_data.mime_type or "image/png"
-                        return {
-                            "image": f"data:{mime_type};base64,{image_base64}",
-                            "success": True
-                        }
+        if response.parts:
+            for part in response.parts:
+                if part.inline_data is not None:
+                    image_data = part.inline_data.data
+                    image_base64 = base64.b64encode(image_data).decode("utf-8")
+                    mime_type = part.inline_data.mime_type or "image/png"
+                    return {
+                        "image": f"data:{mime_type};base64,{image_base64}",
+                        "success": True
+                    }
 
         return {"error": "No image generated", "success": False}
 
