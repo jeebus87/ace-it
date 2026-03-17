@@ -34,10 +34,10 @@ Context: {summary}
 Style: Clean, educational diagram or illustration. Use clear labels, simple shapes, and easy-to-understand visuals. Make it look like something from a textbook or educational website. Colorful but not cluttered."""
 
         response = client.models.generate_content(
-            model="gemini-2.0-flash-exp-image-generation",
+            model="gemini-3.1-flash-image-preview",
             contents=image_prompt,
             config=types.GenerateContentConfig(
-                response_modalities=["image", "text"]
+                response_modalities=["IMAGE", "TEXT"]
             )
         )
 
