@@ -164,20 +164,31 @@ export default function Home() {
       setAnswer(generatedAnswer);
       setStatus("Generating visual...");
 
-      // 4. Generate image
-      const imageRes = await fetch("/api/image", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          question: query,
-          summary: generatedAnswer.substring(0, 500) || "",
-        }),
-      });
-      const imageData = await imageRes.json();
-      const generatedImage = imageData.image || null;
+      // 4. Generate image (don't let image errors block the flow)
+      let generatedImage: string | null = null;
+      try {
+        const imageRes = await fetch("/api/image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            question: query,
+            summary: generatedAnswer.substring(0, 500) || "",
+          }),
+        });
+        const imageData = await imageRes.json();
 
-      if (generatedImage) {
-        setImage(generatedImage);
+        if (imageData.image && typeof imageData.image === "string" && imageData.image.startsWith("data:")) {
+          generatedImage = imageData.image;
+          setImage(generatedImage);
+          console.log("Image generated successfully");
+        } else if (imageData.error) {
+          console.error("Image generation error:", imageData.error);
+        } else {
+          console.warn("Image response missing image data:", imageData);
+        }
+      } catch (imageError) {
+        console.error("Image fetch error:", imageError);
+        // Continue without image - don't block the rest of the flow
       }
 
       // 5. Save to history (before quiz generation)
