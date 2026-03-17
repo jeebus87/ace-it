@@ -31,6 +31,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
   const [status, setStatus] = useState("");
+  const [imageStatus, setImageStatus] = useState("");
 
   // Difficulty selection state
   const [difficulty, setDifficulty] = useState("intermediate");
@@ -188,6 +189,7 @@ export default function Home() {
       const generatedAnswer = answerData.answer || "";
       setAnswer(generatedAnswer);
       setStatus("Generating visual...");
+      setImageStatus("loading");
 
       // 4. Generate image (don't let image errors block the flow)
       let generatedImage: string | null = null;
@@ -206,13 +208,17 @@ export default function Home() {
           generatedImage = imageData.image;
           setImage(generatedImage);
           console.log("Image generated successfully");
+          setImageStatus("success");
         } else if (imageData.error) {
           console.error("Image generation error:", imageData.error);
+          setImageStatus("error: " + imageData.error);
         } else {
+          setImageStatus("no-data");
           console.warn("Image response missing image data:", imageData);
         }
       } catch (imageError) {
         console.error("Image fetch error:", imageError);
+        setImageStatus("fetch-error");
         // Continue without image - don't block the rest of the flow
       }
 
@@ -300,6 +306,13 @@ export default function Home() {
 
       {/* Image */}
       {image && <ImageViewer src={image} />}
+
+      {/* Debug: Image Status */}
+      {imageStatus && !image && (
+        <div className="text-center text-sm text-[hsl(var(--muted-foreground))] mb-4">
+          Image status: {imageStatus}
+        </div>
+      )}
 
       {/* Quiz Button */}
       {quiz && quiz.questions.length > 0 && (
