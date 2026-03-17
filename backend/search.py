@@ -26,13 +26,12 @@ def is_reliable_source(url: str) -> bool:
     return any(domain in url_lower for domain in RELIABLE_DOMAINS)
 
 
-def perform_search(query: str, min_results: int = 5, max_results: int = 10) -> dict:
+def perform_search(query: str, max_results: int = 50) -> dict:
     """
-    Search DuckDuckGo and return results with reliability filtering.
+    Search DuckDuckGo and return as many reliable sources as possible.
 
     Args:
         query: Search query string
-        min_results: Minimum number of results to return
         max_results: Maximum results to fetch from DuckDuckGo
 
     Returns:
@@ -58,14 +57,17 @@ def perform_search(query: str, min_results: int = 5, max_results: int = 10) -> d
         indexed.sort(key=lambda x: (not x[1]["is_reliable"], x[0]))
         sorted_results = [r for _, r in indexed]
 
-        # Ensure at least min_results
-        reliable_count = sum(1 for r in sorted_results if r["is_reliable"])
-        final_count = max(min_results, reliable_count)
+        # Return ALL reliable sources, plus a few non-reliable if needed
+        reliable_results = [r for r in sorted_results if r["is_reliable"]]
+        non_reliable = [r for r in sorted_results if not r["is_reliable"]]
+
+        # Always include all reliable sources, add up to 3 non-reliable as fallback
+        final_results = reliable_results + non_reliable[:3]
 
         return {
-            "results": sorted_results[:final_count],
+            "results": final_results,
             "total": len(sorted_results),
-            "reliable_count": reliable_count
+            "reliable_count": len(reliable_results)
         }
 
     except Exception as e:
