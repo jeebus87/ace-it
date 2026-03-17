@@ -33,6 +33,8 @@ export function QuizModal({ open, onClose, quiz }: QuizModalProps) {
   const [disabledChoices, setDisabledChoices] = useState<Set<string>>(new Set());
   const [completed, setCompleted] = useState(false);
   const [attempts, setAttempts] = useState<Record<number, number>>({});
+  const [typedAnswer, setTypedAnswer] = useState("");
+  const [typedCorrect, setTypedCorrect] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -44,12 +46,19 @@ export function QuizModal({ open, onClose, quiz }: QuizModalProps) {
       setDisabledChoices(new Set());
       setCompleted(false);
       setAttempts({});
+      setTypedAnswer("");
+      setTypedCorrect(false);
     }
   }, [open]);
 
   if (!open || !quiz) return null;
 
   const currentQuestion = quiz.questions[currentIndex];
+  const correctAnswerText = currentQuestion.choices[currentQuestion.correct as keyof typeof currentQuestion.choices];
+
+  const normalizeText = (text: string) => {
+    return text.toLowerCase().trim().replace(/[^\w\s]/g, "");
+  };
 
   const handleAnswer = (choice: string) => {
     if (disabledChoices.has(choice) || showFeedback) return;
@@ -71,12 +80,23 @@ export function QuizModal({ open, onClose, quiz }: QuizModalProps) {
     }
   };
 
+  const handleTypedAnswerSubmit = () => {
+    const normalized = normalizeText(typedAnswer);
+    const normalizedCorrect = normalizeText(correctAnswerText);
+
+    if (normalized === normalizedCorrect) {
+      setTypedCorrect(true);
+    }
+  };
+
   const handleNext = () => {
     if (currentIndex < quiz.questions.length - 1) {
       setCurrentIndex((i) => i + 1);
       setSelectedAnswer(null);
       setShowFeedback(false);
       setDisabledChoices(new Set());
+      setTypedAnswer("");
+      setTypedCorrect(false);
     } else {
       setCompleted(true);
     }
@@ -192,7 +212,7 @@ export function QuizModal({ open, onClose, quiz }: QuizModalProps) {
                     <button
                       key={choice}
                       onClick={() => handleAnswer(choice)}
-                      disabled={isDisabled || (showFeedback && isCorrect)}
+                      disabled={isDisabled || showFeedback}
                       className={buttonClass}
                     >
                       <span className="font-bold mr-2">{choice}.</span>
@@ -206,36 +226,60 @@ export function QuizModal({ open, onClose, quiz }: QuizModalProps) {
               {showFeedback && (
                 <div
                   className={`p-4 rounded-xl mb-6 ${
-                    isCorrect
+                    isCorrect || typedCorrect
                       ? "bg-green-500/10 border border-green-500/30"
                       : "bg-red-500/10 border border-red-500/30"
                   }`}
                 >
                   <div className="flex items-start gap-3">
-                    {isCorrect ? (
+                    {isCorrect || typedCorrect ? (
                       <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
                     ) : (
                       <XCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
                     )}
-                    <div>
+                    <div className="flex-1">
                       <p
                         className={`font-medium mb-2 ${
-                          isCorrect ? "text-green-400" : "text-red-400"
+                          isCorrect || typedCorrect ? "text-green-400" : "text-red-400"
                         }`}
                       >
                         {isCorrect
                           ? attempts[currentIndex] === 1
                             ? "Nailed it on the first try!"
                             : "Got it!"
+                          : typedCorrect
+                          ? "Correct! You got it!"
                           : "Not quite!"}
                       </p>
                       <p className="text-sm text-[hsl(var(--foreground))]/80">
                         {currentQuestion.explanation}
                       </p>
-                      {!isCorrect && (
-                        <p className="text-sm text-[hsl(var(--primary))] mt-2 italic">
-                          Give it another shot - you&apos;ve got this!
-                        </p>
+                      {!isCorrect && !typedCorrect && (
+                        <div className="mt-4 pt-4 border-t border-red-500/30">
+                          <p className="text-sm text-[hsl(var(--foreground))]/80 mb-2">
+                            Type the correct answer to continue:
+                          </p>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={typedAnswer}
+                              onChange={(e) => setTypedAnswer(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  handleTypedAnswerSubmit();
+                                }
+                              }}
+                              placeholder="Type the correct answer..."
+                              className="flex-1 px-3 py-2 rounded-lg bg-[hsl(var(--background))] border border-[hsl(var(--border))] text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]"
+                            />
+                            <button
+                              onClick={handleTypedAnswerSubmit}
+                              className="px-4 py-2 bg-[hsl(var(--primary))] text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+                            >
+                              Submit
+                            </button>
+                          </div>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -243,7 +287,7 @@ export function QuizModal({ open, onClose, quiz }: QuizModalProps) {
               )}
 
               {/* Next Button */}
-              {showFeedback && isCorrect && (
+              {showFeedback && (isCorrect || typedCorrect) && (
                 <button
                   onClick={handleNext}
                   className="w-full py-3 bg-[hsl(var(--primary))] text-white rounded-xl font-medium hover:opacity-90 transition-opacity"
