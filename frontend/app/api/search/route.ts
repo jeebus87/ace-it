@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
+// Extend timeout for AI operations
+export const maxDuration = 60;
+
 const MODAL_SEARCH_URL = process.env.MODAL_SEARCH_URL || "https://jeebus87--ace-it-backend-search.modal.run";
 
 export async function POST(request: NextRequest) {

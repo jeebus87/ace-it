@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
+// Extend timeout for AI operations
+export const maxDuration = 60;
+
 const MODAL_GENERATE_URL = process.env.MODAL_GENERATE_URL || "https://jeebus87--ace-it-backend-generate.modal.run";
 
 export async function POST(request: NextRequest) {

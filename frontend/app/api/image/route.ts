@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
+// Extend timeout for image generation (can take 20-30 seconds)
+export const maxDuration = 60;
+
 const MODAL_IMAGE_URL = process.env.MODAL_IMAGE_URL || "https://jeebus87--ace-it-backend-image-gen.modal.run";
 
 export async function POST(request: NextRequest) {
