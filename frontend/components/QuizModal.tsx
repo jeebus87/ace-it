@@ -15,6 +15,7 @@ interface Quiz {
   questions: Question[];
   topic: string;
   total: number;
+  difficulty?: string;
 }
 
 interface QuizModalProps {
@@ -91,9 +92,15 @@ export function QuizModal({ open, onClose, quiz }: QuizModalProps) {
         <div className="sticky top-0 bg-[hsl(var(--card))] border-b border-[hsl(var(--border))] p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <div>
+              <div className="flex items-center gap-2">
               <h2 className="text-xl sm:text-2xl font-bold text-[hsl(var(--primary))]">
                 Mastery Quiz
               </h2>
+              {quiz.difficulty && (
+                <span className="ml-2 px-2 py-1 text-xs rounded-full bg-[hsl(var(--primary))]/20 text-[hsl(var(--primary))]">
+                  {quiz.difficulty.charAt(0).toUpperCase() + quiz.difficulty.slice(1)}
+                </span>
+              )}
               <p className="text-xs sm:text-sm text-[hsl(var(--muted-foreground))]">
                 100% required to complete
               </p>

@@ -8,13 +8,36 @@ from google import genai
 from google.genai import types
 
 
-def generate_quiz(question: str, answer: str) -> dict:
+DIFFICULTY_GUIDELINES = {
+    "beginner": """
+- Focus on basic comprehension and recall
+- Use simple, direct questions
+- Avoid complex scenarios or edge cases
+- Test fundamental understanding
+- Questions should be approachable for someone new to the topic""",
+    "intermediate": """
+- Test application of concepts
+- Include some analysis questions
+- Mix of straightforward and moderately challenging
+- Require connecting ideas
+- Some questions should require thinking beyond surface-level understanding""",
+    "advanced": """
+- Deep critical thinking required
+- Complex scenarios and edge cases
+- Synthesis of multiple concepts
+- Nuanced distinctions between similar ideas
+- Questions that challenge even those familiar with the topic""",
+}
+
+
+def generate_quiz(question: str, answer: str, difficulty: str = "intermediate") -> dict:
     """
     Generate a 10-question multiple choice quiz.
 
     Args:
         question: The original study question
         answer: The generated answer text
+        difficulty: Quiz difficulty level (beginner, intermediate, advanced)
 
     Returns:
         Dict with quiz questions or error
@@ -23,12 +46,19 @@ def generate_quiz(question: str, answer: str) -> dict:
     if not api_key:
         return {"error": "GEMINI_API_KEY not configured"}
 
+    difficulty_instruction = DIFFICULTY_GUIDELINES.get(
+        difficulty.lower(), DIFFICULTY_GUIDELINES["intermediate"]
+    )
+
     try:
         client = genai.Client(api_key=api_key)
 
         quiz_prompt = f"""Based on this study material, create exactly 10 multiple choice questions.
 
 TOPIC: {question}
+
+DIFFICULTY LEVEL: {difficulty.upper()}
+{difficulty_instruction}
 
 STUDY MATERIAL:
 {answer}
@@ -38,7 +68,7 @@ REQUIREMENTS:
 - 4 answer choices (A, B, C, D) per question
 - Only ONE correct answer per question
 - Include plausible distractors (wrong answers that seem reasonable)
-- Questions should progress from basic to more challenging
+- Follow the difficulty guidelines above
 
 OUTPUT FORMAT (valid JSON only, no markdown, no code blocks):
 {{
@@ -79,6 +109,7 @@ Return ONLY valid JSON, no other text."""
         quiz_data = json.loads(response.text)
         quiz_data["topic"] = question
         quiz_data["total"] = len(quiz_data.get("questions", []))
+        quiz_data["difficulty"] = difficulty
 
         return quiz_data
 

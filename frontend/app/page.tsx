@@ -5,6 +5,7 @@ import { SearchBar } from "@/components/SearchBar";
 import { AnswerDisplay } from "@/components/AnswerDisplay";
 import { ImageViewer } from "@/components/ImageViewer";
 import { QuizModal } from "@/components/QuizModal";
+import { DifficultyPrompt } from "@/components/DifficultyPrompt";
 import { GraduationCap, Sparkles } from "lucide-react";
 
 interface Question {
@@ -19,6 +20,7 @@ interface Quiz {
   questions: Question[];
   topic: string;
   total: number;
+  difficulty?: string;
 }
 
 export default function Home() {
@@ -28,6 +30,60 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
   const [status, setStatus] = useState("");
+
+  // Difficulty selection state
+  const [difficulty, setDifficulty] = useState("intermediate");
+  const [dontAskAgain, setDontAskAgain] = useState(false);
+  const [showDifficultyPrompt, setShowDifficultyPrompt] = useState(false);
+  const [pendingQuizData, setPendingQuizData] = useState<{
+    question: string;
+    answer: string;
+  } | null>(null);
+
+  const generateQuiz = async (
+    question: string,
+    answerText: string,
+    selectedDifficulty: string
+  ) => {
+    setStatus("Generating quiz...");
+    try {
+      const quizRes = await fetch("/api/quiz", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question,
+          answer: answerText,
+          difficulty: selectedDifficulty,
+        }),
+      });
+      const quizData = await quizRes.json();
+      if (quizData.questions?.length > 0) {
+        setQuiz({ ...quizData, difficulty: selectedDifficulty });
+      }
+    } catch (error) {
+      console.error("Quiz generation error:", error);
+    } finally {
+      setStatus("");
+    }
+  };
+
+  const handleDifficultySelect = (
+    selectedDifficulty: string,
+    remember: boolean
+  ) => {
+    setDifficulty(selectedDifficulty);
+    setDontAskAgain(remember);
+    setShowDifficultyPrompt(false);
+
+    if (pendingQuizData) {
+      generateQuiz(
+        pendingQuizData.question,
+        pendingQuizData.answer,
+        selectedDifficulty
+      );
+      setPendingQuizData(null);
+    }
+  };
 
   const handleSearch = async (query: string) => {
     setLoading(true);
@@ -51,15 +107,23 @@ export default function Home() {
         return;
       }
 
-      setStatus(`Found ${searchData.results?.length || 0} sources. Generating answer...`);
+      setStatus(
+        `Found ${searchData.results?.length || 0} sources. Generating answer...`
+      );
 
       // 2. Build context from search results
-      const context = searchData.results
-        ?.map(
-          (r: { is_reliable: boolean; title: string; snippet: string; url: string }) =>
-            `[${r.is_reliable ? "VERIFIED" : ""}] ${r.title}\n${r.snippet}\nURL: ${r.url}`
-        )
-        .join("\n\n") || "";
+      const context =
+        searchData.results
+          ?.map(
+            (r: {
+              is_reliable: boolean;
+              title: string;
+              snippet: string;
+              url: string;
+            }) =>
+              `[${r.is_reliable ? "VERIFIED" : ""}] ${r.title}\n${r.snippet}\nURL: ${r.url}`
+          )
+          .join("\n\n") || "";
 
       // 3. Generate answer
       const answerRes = await fetch("/api/generate", {
@@ -76,39 +140,31 @@ export default function Home() {
       }
 
       setAnswer(answerData.answer || "");
-      setStatus("Generating visual and quiz...");
+      setStatus("Generating visual...");
 
-      // 4. Generate image and quiz in parallel
-      const [imageRes, quizRes] = await Promise.all([
-        fetch("/api/image", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            question: query,
-            summary: answerData.answer?.substring(0, 500) || "",
-          }),
+      // 4. Generate image
+      const imageRes = await fetch("/api/image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: query,
+          summary: answerData.answer?.substring(0, 500) || "",
         }),
-        fetch("/api/quiz", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            question: query,
-            answer: answerData.answer || "",
-          }),
-        }),
-      ]);
-
-      const [imageData, quizData] = await Promise.all([
-        imageRes.json(),
-        quizRes.json(),
-      ]);
+      });
+      const imageData = await imageRes.json();
 
       if (imageData.image) {
         setImage(imageData.image);
       }
 
-      if (quizData.questions?.length > 0) {
-        setQuiz(quizData);
+      // 5. Handle quiz generation based on difficulty preference
+      if (dontAskAgain) {
+        // Use saved difficulty preference
+        await generateQuiz(query, answerData.answer || "", difficulty);
+      } else {
+        // Show difficulty selection prompt
+        setPendingQuizData({ question: query, answer: answerData.answer || "" });
+        setShowDifficultyPrompt(true);
       }
 
       setStatus("");
@@ -164,6 +220,12 @@ export default function Home() {
           </button>
         </div>
       )}
+
+      {/* Difficulty Selection Prompt */}
+      <DifficultyPrompt
+        open={showDifficultyPrompt}
+        onSelect={handleDifficultySelect}
+      />
 
       {/* Quiz Modal */}
       <QuizModal
