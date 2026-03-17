@@ -6,19 +6,19 @@ import modal
 
 app = modal.App("ace-it-backend")
 
-# Shared image with all dependencies
+# Shared image with all dependencies (v7 - gemini-2.5-flash with copy=True)
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .pip_install(
-        "google-genai",
+        "google-genai>=1.0.0",
         "ddgs",
         "pydantic",
         "fastapi[standard]",
     )
-    .add_local_file("search.py", "/root/search.py")
-    .add_local_file("llm.py", "/root/llm.py")
-    .add_local_file("quiz.py", "/root/quiz.py")
-    .add_local_file("image_gen.py", "/root/image_gen.py")
+    .add_local_file("search.py", "/root/search.py", copy=True)
+    .add_local_file("llm.py", "/root/llm.py", copy=True)
+    .add_local_file("quiz.py", "/root/quiz.py", copy=True)
+    .add_local_file("image_gen.py", "/root/image_gen.py", copy=True)
 )
 
 

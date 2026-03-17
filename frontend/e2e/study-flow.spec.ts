@@ -73,7 +73,7 @@ test.describe("Ace-It Study Flow E2E Tests", () => {
 
     // Step 2: Enter the search query
     log(`Step 2: Entering search query: "${query}"`);
-    const searchInput = page.locator('input[placeholder*="question"]');
+    const searchInput = page.locator('textarea[placeholder*="study"]');
     await expect(searchInput).toBeVisible({ timeout: 10000 });
     log("Search input is visible");
 
@@ -85,13 +85,9 @@ test.describe("Ace-It Study Flow E2E Tests", () => {
     log(`Verified input value: "${inputValue}"`);
     expect(inputValue).toBe(query);
 
-    // Step 3: Submit the search
-    log("Step 3: Submitting search...");
-    const submitButton = page.locator('button[type="submit"]');
-    await expect(submitButton).toBeEnabled();
-    log("Submit button is enabled");
-
-    await submitButton.click();
+    // Step 3: Submit the search (using Enter key since button doesn't have type="submit")
+    log("Step 3: Submitting search via Enter key...");
+    await searchInput.press("Enter");
     log("Search submitted, waiting for response...");
 
     // Step 4: Wait for status updates
@@ -223,7 +219,9 @@ test.describe("Ace-It Study Flow E2E Tests", () => {
 
       // Step 11: Close the quiz
       log("Step 11: Closing quiz modal...");
-      const closeButton = page.locator('button:has(svg[class*="w-5 h-5"])').first();
+      // The close button is in the quiz modal header, near "Mastery Quiz" text
+      const quizModalHeader = page.locator('div:has(h2:text("Mastery Quiz"))');
+      const closeButton = quizModalHeader.locator('button').first();
       await closeButton.click();
       log("Quiz closed");
     }
@@ -293,7 +291,7 @@ test.describe("Ace-It Study Flow E2E Tests", () => {
     await expect(page.locator("h1")).toContainText("Ace-It");
 
     log("Verifying search input is visible on mobile...");
-    const searchInput = page.locator('input[placeholder*="question"]');
+    const searchInput = page.locator('textarea[placeholder*="study"]');
     await expect(searchInput).toBeVisible();
 
     log("Mobile responsive design verified");

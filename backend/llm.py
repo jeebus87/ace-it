@@ -63,7 +63,7 @@ WEB SEARCH CONTEXT:
 Please provide a clear, educational answer based on the search results above."""
 
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-2.5-flash",
             contents=prompt,
             config=types.GenerateContentConfig(
                 system_instruction=SYSTEM_PROMPT
