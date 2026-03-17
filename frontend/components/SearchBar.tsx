@@ -14,6 +14,7 @@ export function SearchBar({ onSearch, loading }: SearchBarProps) {
   const handleSubmit = () => {
     if (query.trim() && !loading) {
       onSearch(query.trim());
+      setQuery("");
     }
   };
 
