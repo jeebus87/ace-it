@@ -6,7 +6,7 @@ import modal
 
 app = modal.App("ace-it-backend")
 
-# Shared image with all dependencies (v7 - gemini-2.5-flash with copy=True)
+# Shared image with all dependencies (v8 - gemini-3.1-pro-preview)
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .pip_install(
