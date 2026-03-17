@@ -6,6 +6,7 @@ import { AnswerDisplay } from "@/components/AnswerDisplay";
 import { ImageViewer } from "@/components/ImageViewer";
 import { QuizModal } from "@/components/QuizModal";
 import { DifficultyPrompt } from "@/components/DifficultyPrompt";
+import { HistorySidebar, Inquiry } from "@/components/HistorySidebar";
 import { GraduationCap, Sparkles } from "lucide-react";
 
 interface Question {
@@ -40,10 +41,15 @@ export default function Home() {
     answer: string;
   } | null>(null);
 
+  // History state
+  const [history, setHistory] = useState<Inquiry[]>([]);
+  const [currentInquiryId, setCurrentInquiryId] = useState<string | null>(null);
+
   const generateQuiz = async (
     question: string,
     answerText: string,
-    selectedDifficulty: string
+    selectedDifficulty: string,
+    inquiryId?: string
   ) => {
     setStatus("Generating quiz...");
     try {
@@ -58,7 +64,17 @@ export default function Home() {
       });
       const quizData = await quizRes.json();
       if (quizData.questions?.length > 0) {
-        setQuiz({ ...quizData, difficulty: selectedDifficulty });
+        const newQuiz = { ...quizData, difficulty: selectedDifficulty };
+        setQuiz(newQuiz);
+        // Update history with quiz
+        const updateId = inquiryId || currentInquiryId;
+        if (updateId) {
+          setHistory((prev) =>
+            prev.map((item) =>
+              item.id === updateId ? { ...item, quiz: newQuiz } : item
+            )
+          );
+        }
       }
     } catch (error) {
       console.error("Quiz generation error:", error);
@@ -79,7 +95,8 @@ export default function Home() {
       generateQuiz(
         pendingQuizData.question,
         pendingQuizData.answer,
-        selectedDifficulty
+        selectedDifficulty,
+        currentInquiryId || undefined
       );
       setPendingQuizData(null);
     }
@@ -91,6 +108,10 @@ export default function Home() {
     setImage(null);
     setQuiz(null);
     setStatus("Searching reliable sources...");
+
+    // Create inquiry ID upfront
+    const inquiryId = `inquiry-${Date.now()}`;
+    setCurrentInquiryId(inquiryId);
 
     try {
       // 1. Search
@@ -139,7 +160,8 @@ export default function Home() {
         return;
       }
 
-      setAnswer(answerData.answer || "");
+      const generatedAnswer = answerData.answer || "";
+      setAnswer(generatedAnswer);
       setStatus("Generating visual...");
 
       // 4. Generate image
@@ -148,22 +170,34 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           question: query,
-          summary: answerData.answer?.substring(0, 500) || "",
+          summary: generatedAnswer.substring(0, 500) || "",
         }),
       });
       const imageData = await imageRes.json();
+      const generatedImage = imageData.image || null;
 
-      if (imageData.image) {
-        setImage(imageData.image);
+      if (generatedImage) {
+        setImage(generatedImage);
       }
 
-      // 5. Handle quiz generation based on difficulty preference
+      // 5. Save to history (before quiz generation)
+      const newInquiry: Inquiry = {
+        id: inquiryId,
+        query,
+        answer: generatedAnswer,
+        image: generatedImage,
+        quiz: null,
+        timestamp: new Date(),
+      };
+      setHistory((prev) => [newInquiry, ...prev]);
+
+      // 6. Handle quiz generation based on difficulty preference
       if (dontAskAgain) {
         // Use saved difficulty preference
-        await generateQuiz(query, answerData.answer || "", difficulty);
+        await generateQuiz(query, generatedAnswer, difficulty, inquiryId);
       } else {
         // Show difficulty selection prompt
-        setPendingQuizData({ question: query, answer: answerData.answer || "" });
+        setPendingQuizData({ question: query, answer: generatedAnswer });
         setShowDifficultyPrompt(true);
       }
 
@@ -176,8 +210,29 @@ export default function Home() {
     }
   };
 
+  const handleSelectInquiry = (inquiry: Inquiry) => {
+    setCurrentInquiryId(inquiry.id);
+    setAnswer(inquiry.answer);
+    setImage(inquiry.image);
+    setQuiz(inquiry.quiz);
+    setShowQuiz(false);
+  };
+
+  const handleClearHistory = () => {
+    setHistory([]);
+    setCurrentInquiryId(null);
+  };
+
   return (
     <main className="min-h-screen py-8 px-4">
+      {/* History Sidebar */}
+      <HistorySidebar
+        inquiries={history}
+        currentId={currentInquiryId}
+        onSelect={handleSelectInquiry}
+        onClear={handleClearHistory}
+      />
+
       {/* Header */}
       <header className="text-center mb-8 sm:mb-12">
         <div className="flex items-center justify-center gap-3 mb-3">
