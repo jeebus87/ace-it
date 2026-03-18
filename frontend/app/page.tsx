@@ -79,7 +79,7 @@ export default function Home() {
   ) => {
     setStatus("Generating quiz...");
     try {
-      const quizRes = await fetch("/api/quiz", {
+      const quizRes = await fetch("https://jeebus87--ace-it-backend-quiz.modal.run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -141,7 +141,7 @@ export default function Home() {
 
     try {
       // 1. Search
-      const searchRes = await fetch("/api/search", {
+      const searchRes = await fetch("https://jeebus87--ace-it-backend-search.modal.run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query }),
@@ -173,7 +173,7 @@ export default function Home() {
           .join("\n\n") || "";
 
       // 3. Generate answer
-      const answerRes = await fetch("/api/generate", {
+      const answerRes = await fetch("https://jeebus87--ace-it-backend-generate.modal.run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question: query, context }),
@@ -194,7 +194,7 @@ export default function Home() {
       // 4. Generate image (don't let image errors block the flow)
       let generatedImage: string | null = null;
       try {
-        const imageRes = await fetch("/api/image", {
+        const imageRes = await fetch("https://jeebus87--ace-it-backend-image-gen.modal.run", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
