@@ -14,6 +14,7 @@ CRITICAL REQUIREMENTS:
 3. Be surgically concise - eliminate all filler words and redundancy
 4. Use precise terminology where appropriate, but explain it clearly
 5. If the context is insufficient, acknowledge limitations rather than guess
+6. Always use double quotes (") for quotations, never single quotes (')
 
 FORMAT YOUR RESPONSE WITH THESE SECTIONS:
 

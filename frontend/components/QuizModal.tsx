@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X, CheckCircle, XCircle, Trophy } from "lucide-react";
 
 interface Question {
@@ -36,9 +36,15 @@ export function QuizModal({ open, onClose, quiz }: QuizModalProps) {
   const [typedAnswer, setTypedAnswer] = useState("");
   const [typedCorrect, setTypedCorrect] = useState(false);
 
-  useEffect(() => {
-    if (open) {
-      // Reset state when opening
+  // Track the quiz topic to detect when a NEW quiz is loaded
+  const prevQuizTopicRef = useRef<string | null>(null);
+
+useEffect(() => {
+    // Only reset state when it's a NEW quiz (different topic)
+    const isNewQuiz = quiz?.topic !== prevQuizTopicRef.current;
+    
+    if (quiz && isNewQuiz) {
+      prevQuizTopicRef.current = quiz.topic;
       setCurrentIndex(0);
       setScore(0);
       setSelectedAnswer(null);
@@ -49,7 +55,7 @@ export function QuizModal({ open, onClose, quiz }: QuizModalProps) {
       setTypedAnswer("");
       setTypedCorrect(false);
     }
-  }, [open]);
+  }, [quiz?.topic]);
 
   if (!open || !quiz) return null;
 

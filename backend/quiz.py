@@ -95,6 +95,7 @@ IMPORTANT FOR EXPLANATIONS:
 - For wrong answers, explain WHY that choice seems appealing but is incorrect
 - Guide them to the right thinking with simple analogies
 - Keep it conversational - use "you", contractions, and encouraging language
+- Always use double quotes (") for quotations, never single quotes (')
 
 Return ONLY valid JSON, no other text."""
 
