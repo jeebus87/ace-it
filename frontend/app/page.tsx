@@ -7,7 +7,15 @@ import { ImageViewer } from "@/components/ImageViewer";
 import { QuizModal } from "@/components/QuizModal";
 import { DifficultyPrompt } from "@/components/DifficultyPrompt";
 import { HistorySidebar, Inquiry, QuizProgress } from "@/components/HistorySidebar";
-import { GraduationCap, Sparkles, ImageOff } from "lucide-react";
+import { GraduationCap, Sparkles, ImageOff, BarChart3 } from "lucide-react";
+import Link from "next/link";
+import { SoundToggle } from "@/components/SoundToggle";
+import { StreakBadge } from "@/components/StreakBadge";
+import { useSound } from "@/hooks/useSound";
+import { useStreak } from "@/hooks/useStreak";
+import { useXP } from "@/hooks/useXP";
+import { useStats } from "@/hooks/useStats";
+import { LevelBadge } from "@/components/LevelBadge";
 
 interface Question {
   id: number;
@@ -33,6 +41,18 @@ export default function Home() {
   const [quizProgress, setQuizProgress] = useState<QuizProgress | null>(null);
   const [status, setStatus] = useState("");
   const [imageStatus, setImageStatus] = useState("");
+
+  // Sound effects
+  const { soundEnabled, toggleSound } = useSound();
+
+  // Streak tracking
+  const { currentStreak, isStreakAtRisk, todayCompleted, recordQuizCompletion } = useStreak();
+
+  // XP system
+  const { totalXP, level, title, progress, xpToNextLevel, leveledUp, awardXP, awardPerfectBonus } = useXP();
+
+  // Stats tracking
+  const { recordQuizComplete } = useStats();
 
   // Difficulty selection state
   const [difficulty, setDifficulty] = useState("intermediate");
@@ -258,6 +278,15 @@ export default function Home() {
     }
   };
 
+  // XP award handlers
+  const handleCorrectAnswer = (isFirstTry: boolean): number => {
+    return awardXP(isFirstTry, currentStreak);
+  };
+
+  const handlePerfectQuiz = (questionCount: number): number => {
+    return awardPerfectBonus(questionCount, currentStreak);
+  };
+
   const handleQuizProgressChange = (progress: QuizProgress) => {
     setQuizProgress(progress);
     // Save progress to current inquiry in history
@@ -267,6 +296,15 @@ export default function Home() {
           item.id === currentInquiryId ? { ...item, quizProgress: progress } : item
         )
       );
+    }
+    // Record streak and stats when quiz is completed
+    if (progress.completed && quiz) {
+      recordQuizCompletion();
+      // Calculate first-try correct answers
+      const totalAttempts = Object.values(progress.attempts).reduce((a, b) => a + b, 0);
+      const correctFirstTry = quiz.questions.length - (totalAttempts - quiz.questions.length);
+      const isPerfect = totalAttempts === quiz.questions.length;
+      recordQuizComplete(quiz.questions.length, Math.max(0, correctFirstTry), isPerfect);
     }
   };
 
@@ -294,6 +332,31 @@ export default function Home() {
         onSelect={handleSelectInquiry}
         onClear={handleClearHistory}
       />
+
+      {/* Stats Link & Controls */}
+      <div className="fixed top-4 right-4 z-40 flex items-center gap-2">
+        <Link
+          href="/stats"
+          className="p-2 rounded-lg hover:bg-[hsl(var(--secondary))] transition-colors"
+          title="View Stats"
+        >
+          <BarChart3 className="w-5 h-5 text-[hsl(var(--muted-foreground))]" />
+        </Link>
+        <LevelBadge
+          level={level}
+          title={title}
+          totalXP={totalXP}
+          progress={progress}
+          xpToNextLevel={xpToNextLevel}
+          leveledUp={leveledUp}
+        />
+        <StreakBadge
+          currentStreak={currentStreak}
+          isAtRisk={isStreakAtRisk}
+          todayCompleted={todayCompleted}
+        />
+        <SoundToggle enabled={soundEnabled} onToggle={toggleSound} />
+      </div>
 
       {/* Header */}
       <header className="text-center mb-8 sm:mb-12">
@@ -363,6 +426,8 @@ export default function Home() {
         quiz={quiz}
         initialProgress={quizProgress}
         onProgressChange={handleQuizProgressChange}
+        onCorrectAnswer={handleCorrectAnswer}
+        onPerfectQuiz={handlePerfectQuiz}
       />
 
       {/* Footer */}

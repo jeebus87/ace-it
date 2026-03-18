@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { X, CheckCircle, XCircle, Trophy } from "lucide-react";
+import { X, CheckCircle, XCircle, Trophy, Crown, Flame } from "lucide-react";
+import confetti from "canvas-confetti";
 import { QuizProgress } from "./HistorySidebar";
+import { useSound } from "@/hooks/useSound";
 
 interface Question {
   id: number;
@@ -25,9 +27,11 @@ interface QuizModalProps {
   quiz: Quiz | null;
   initialProgress?: QuizProgress | null;
   onProgressChange?: (progress: QuizProgress) => void;
+  onCorrectAnswer?: (isFirstTry: boolean) => number;
+  onPerfectQuiz?: (questionCount: number) => number;
 }
 
-export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChange }: QuizModalProps) {
+export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChange, onCorrectAnswer, onPerfectQuiz }: QuizModalProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
@@ -39,15 +43,39 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
   const [allDisabledChoices, setAllDisabledChoices] = useState<Record<number, string[]>>({});
   const [typedAnswer, setTypedAnswer] = useState("");
   const [typedCorrect, setTypedCorrect] = useState(false);
+  const [combo, setCombo] = useState(0);
+  const [showCombo, setShowCombo] = useState(false);
+  const [comboText, setComboText] = useState("");
+  const [xpGained, setXPGained] = useState<number | null>(null);
+  const [totalXPGained, setTotalXPGained] = useState(0);
 
   const prevQuizTopicRef = useRef<string | null>(null);
+  const { playCorrect, playWrong, playComplete, playCombo } = useSound();
+
+  const fireConfetti = () => {
+    const duration = 3000;
+    const end = Date.now() + duration;
+    const frame = () => {
+      confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0, y: 0.8 }, colors: ["#6366f1", "#8b5cf6", "#a855f7", "#fbbf24", "#34d399"] });
+      confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1, y: 0.8 }, colors: ["#6366f1", "#8b5cf6", "#a855f7", "#fbbf24", "#34d399"] });
+      if (Date.now() < end) requestAnimationFrame(frame);
+    };
+    frame();
+  };
+
+  const triggerCombo = (count: number) => {
+    if (count >= 3) {
+      setComboText(`${count}x Combo!`);
+      setShowCombo(true);
+      playCombo();
+      setTimeout(() => setShowCombo(false), 1500);
+    }
+  };
 
   useEffect(() => {
     const isNewQuiz = quiz?.topic !== prevQuizTopicRef.current;
-
     if (quiz && isNewQuiz) {
       prevQuizTopicRef.current = quiz.topic;
-
       if (initialProgress) {
         setCurrentIndex(initialProgress.currentIndex);
         setScore(initialProgress.score);
@@ -57,17 +85,9 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
         const currentDisabled = initialProgress.disabledChoices[initialProgress.currentIndex] || [];
         setDisabledChoices(new Set(currentDisabled));
       } else {
-        setCurrentIndex(0);
-        setScore(0);
-        setAttempts({});
-        setCompleted(false);
-        setAllDisabledChoices({});
-        setDisabledChoices(new Set());
+        setCurrentIndex(0); setScore(0); setAttempts({}); setCompleted(false); setAllDisabledChoices({}); setDisabledChoices(new Set());
       }
-      setSelectedAnswer(null);
-      setShowFeedback(false);
-      setTypedAnswer("");
-      setTypedCorrect(false);
+      setSelectedAnswer(null); setShowFeedback(false); setTypedAnswer(""); setTypedCorrect(false); setCombo(0);
     }
   }, [quiz?.topic, initialProgress]);
 
@@ -75,73 +95,72 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
     if (onProgressChange && quiz) {
       const updatedDisabled = { ...allDisabledChoices };
       updatedDisabled[currentIndex] = Array.from(disabledChoices);
-
-      onProgressChange({
-        currentIndex,
-        score,
-        attempts,
-        completed,
-        disabledChoices: updatedDisabled,
-      });
+      onProgressChange({ currentIndex, score, attempts, completed, disabledChoices: updatedDisabled });
     }
   }, [currentIndex, score, attempts, completed, disabledChoices]);
+
+  useEffect(() => {
+    if (completed && quiz) {
+      fireConfetti();
+      playComplete();
+      // Award perfect quiz bonus
+      const totalAttempts = Object.values(attempts).reduce((a, b) => a + b, 0);
+      const isPerfectScore = totalAttempts === quiz.questions.length;
+      if (isPerfectScore && onPerfectQuiz) {
+        const bonus = onPerfectQuiz(quiz.questions.length);
+        setXPGained(bonus);
+        setTimeout(() => setXPGained(null), 2500);
+      }
+    }
+  }, [completed, playComplete, attempts, onPerfectQuiz, quiz]);
 
   if (!open || !quiz) return null;
 
   const currentQuestion = quiz.questions[currentIndex];
   const correctAnswerText = currentQuestion.choices[currentQuestion.correct as keyof typeof currentQuestion.choices];
-
-  const normalizeText = (text: string) => {
-    return text.toLowerCase().trim().replace(/[^\w\s]/g, "");
-  };
+  const normalizeText = (text: string) => text.toLowerCase().trim().replace(/[^\w\s]/g, "");
 
   const handleAnswer = (choice: string) => {
     if (disabledChoices.has(choice) || showFeedback) return;
-
     setSelectedAnswer(choice);
-    setAttempts((prev) => ({
-      ...prev,
-      [currentIndex]: (prev[currentIndex] || 0) + 1,
-    }));
-
+    setAttempts((prev) => ({ ...prev, [currentIndex]: (prev[currentIndex] || 0) + 1 }));
     const correct = choice === currentQuestion.correct;
     setIsCorrect(correct);
     setShowFeedback(true);
-
     if (correct) {
       setScore((s) => s + 1);
+      playCorrect();
+      const isFirstTry = !attempts[currentIndex];
+      if (isFirstTry) { const newCombo = combo + 1; setCombo(newCombo); triggerCombo(newCombo); } else { setCombo(0); }
+      // Award XP
+      if (onCorrectAnswer) {
+        const xp = onCorrectAnswer(isFirstTry);
+        setXPGained(xp);
+        setTotalXPGained((prev) => prev + xp);
+        setTimeout(() => setXPGained(null), 1500);
+      }
     } else {
+      playWrong();
+      setCombo(0);
       const newDisabled = new Set([...disabledChoices, choice]);
       setDisabledChoices(newDisabled);
-      setAllDisabledChoices((prev) => ({
-        ...prev,
-        [currentIndex]: Array.from(newDisabled),
-      }));
+      setAllDisabledChoices((prev) => ({ ...prev, [currentIndex]: Array.from(newDisabled) }));
     }
   };
 
   const handleTypedAnswerSubmit = () => {
     const normalized = normalizeText(typedAnswer);
     const normalizedCorrect = normalizeText(correctAnswerText);
-
-    if (normalized === normalizedCorrect) {
-      setTypedCorrect(true);
-    }
+    if (normalized === normalizedCorrect) { setTypedCorrect(true); playCorrect(); } else { playWrong(); }
   };
 
   const handleNext = () => {
     if (currentIndex < quiz.questions.length - 1) {
       const nextIndex = currentIndex + 1;
-      setCurrentIndex(nextIndex);
-      setSelectedAnswer(null);
-      setShowFeedback(false);
+      setCurrentIndex(nextIndex); setSelectedAnswer(null); setShowFeedback(false);
       const nextDisabled = allDisabledChoices[nextIndex] || [];
-      setDisabledChoices(new Set(nextDisabled));
-      setTypedAnswer("");
-      setTypedCorrect(false);
-    } else {
-      setCompleted(true);
-    }
+      setDisabledChoices(new Set(nextDisabled)); setTypedAnswer(""); setTypedCorrect(false);
+    } else { setCompleted(true); }
   };
 
   const totalAttempts = Object.values(attempts).reduce((a, b) => a + b, 0);
@@ -149,50 +168,59 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[hsl(var(--background))]/95 p-4 overflow-y-auto">
+      {showCombo && (
+        <div className="fixed top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[60] pointer-events-none">
+          <div className="animate-bounce flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 rounded-full shadow-lg">
+            <Flame className="w-6 h-6 text-yellow-300 animate-pulse" />
+            <span className="text-2xl font-bold text-white">{comboText}</span>
+            <Flame className="w-6 h-6 text-yellow-300 animate-pulse" />
+          </div>
+        </div>
+      )}
+      {xpGained && (
+        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[60] pointer-events-none animate-float-up">
+          <div className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full shadow-lg">
+            <span className="text-xl font-bold text-white">+{xpGained} XP</span>
+          </div>
+        </div>
+      )}
       <div className="w-full max-w-2xl bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-[hsl(var(--card))] border-b border-[hsl(var(--border))] p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-xl sm:text-2xl font-bold text-[hsl(var(--primary))]">
-                  Mastery Quiz
-                </h2>
-                {quiz.difficulty && (
-                  <span className="px-2 py-1 text-xs rounded-full bg-[hsl(var(--primary))]/20 text-[hsl(var(--primary))]">
-                    {quiz.difficulty.charAt(0).toUpperCase() + quiz.difficulty.slice(1)}
-                  </span>
-                )}
+                <h2 className="text-xl sm:text-2xl font-bold text-[hsl(var(--primary))]">Mastery Quiz</h2>
+                {quiz.difficulty && (<span className="px-2 py-1 text-xs rounded-full bg-[hsl(var(--primary))]/20 text-[hsl(var(--primary))]">{quiz.difficulty.charAt(0).toUpperCase() + quiz.difficulty.slice(1)}</span>)}
               </div>
-              <p className="text-xs sm:text-sm text-[hsl(var(--muted-foreground))]">
-                100% required to complete
-              </p>
+              <p className="text-xs sm:text-sm text-[hsl(var(--muted-foreground))]">100% required to complete</p>
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 rounded-lg hover:bg-[hsl(var(--secondary))] transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <button onClick={onClose} className="p-2 rounded-lg hover:bg-[hsl(var(--secondary))] transition-colors"><X className="w-5 h-5" /></button>
           </div>
           {!completed && (
             <div className="mt-4 flex items-center justify-between text-sm">
-              <span className="text-[hsl(var(--primary))]">
-                Question {currentIndex + 1} of {quiz.questions.length}
-              </span>
-              <span className="text-[hsl(var(--muted-foreground))]">
-                Score: {score}/{quiz.questions.length}
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="text-[hsl(var(--primary))]">Question {currentIndex + 1} of {quiz.questions.length}</span>
+                {combo >= 3 && (<span className="flex items-center gap-1 px-2 py-0.5 bg-orange-500/20 text-orange-400 rounded-full text-xs font-medium"><Flame className="w-3 h-3" />{combo}x</span>)}
+              </div>
+              <span className="text-[hsl(var(--muted-foreground))]">Score: {score}/{quiz.questions.length}</span>
             </div>
           )}
         </div>
         <div className="p-4 sm:p-6">
           {completed ? (
             <div className="text-center py-8">
-              <Trophy className={`w-16 h-16 mx-auto mb-4 ${isPerfect ? "text-yellow-400" : "text-[hsl(var(--primary))]"}`} />
+              <div className="relative inline-block">
+                <Trophy className={`w-16 h-16 mx-auto mb-4 ${isPerfect ? "text-yellow-400" : "text-[hsl(var(--primary))]"}`} />
+                {isPerfect && (<Crown className="w-8 h-8 text-yellow-400 absolute -top-2 -right-2 animate-bounce" />)}
+              </div>
               <h3 className="text-2xl font-bold mb-2">{isPerfect ? "Perfect Score!" : "Mastery Achieved!"}</h3>
+              {isPerfect && (<div className="flex items-center justify-center gap-2 mb-4"><Crown className="w-5 h-5 text-yellow-400" /><span className="text-yellow-400 font-medium">First Try Champion!</span><Crown className="w-5 h-5 text-yellow-400" /></div>)}
               <p className="text-[hsl(var(--muted-foreground))] mb-6">{isPerfect ? "You got every question right on the first try!" : "You have demonstrated complete understanding."}</p>
               <p className="text-lg mb-2">Score: {score}/{quiz.questions.length}</p>
-              <p className="text-sm text-[hsl(var(--muted-foreground))] mb-6">Total attempts: {totalAttempts}</p>
+              <p className="text-sm text-[hsl(var(--muted-foreground))] mb-2">Total attempts: {totalAttempts}</p>
+              {totalXPGained > 0 && (
+                <p className="text-sm text-green-400 font-medium mb-6">+{totalXPGained} XP earned!</p>
+              )}
               <button onClick={onClose} className="px-6 py-3 bg-[hsl(var(--primary))] text-white rounded-xl font-medium hover:opacity-90 transition-opacity">Close Quiz</button>
             </div>
           ) : (
@@ -224,7 +252,7 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
                         <div className="mt-4 pt-4 border-t border-red-500/30">
                           <p className="text-sm text-[hsl(var(--foreground))]/80 mb-2">Type the correct answer to continue:</p>
                           <div className="flex gap-2">
-                            <input type="text" value={typedAnswer} onChange={(e) => setTypedAnswer(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { handleTypedAnswerSubmit(); } }} placeholder="Type the correct answer..." className="flex-1 px-3 py-2 rounded-lg bg-[hsl(var(--background))] border border-[hsl(var(--border))] text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]" />
+                            <input type="text" value={typedAnswer} onChange={(e) => setTypedAnswer(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") handleTypedAnswerSubmit(); }} placeholder="Type the correct answer..." className="flex-1 px-3 py-2 rounded-lg bg-[hsl(var(--background))] border border-[hsl(var(--border))] text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]" />
                             <button onClick={handleTypedAnswerSubmit} className="px-4 py-2 bg-[hsl(var(--primary))] text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity">Submit</button>
                           </div>
                         </div>
