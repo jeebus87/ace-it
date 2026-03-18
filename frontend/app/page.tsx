@@ -6,7 +6,7 @@ import { AnswerDisplay } from "@/components/AnswerDisplay";
 import { ImageViewer } from "@/components/ImageViewer";
 import { QuizModal } from "@/components/QuizModal";
 import { DifficultyPrompt } from "@/components/DifficultyPrompt";
-import { HistorySidebar, Inquiry } from "@/components/HistorySidebar";
+import { HistorySidebar, Inquiry, QuizProgress } from "@/components/HistorySidebar";
 import { GraduationCap, Sparkles, ImageOff } from "lucide-react";
 
 interface Question {
@@ -30,6 +30,7 @@ export default function Home() {
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [loading, setLoading] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
+  const [quizProgress, setQuizProgress] = useState<QuizProgress | null>(null);
   const [status, setStatus] = useState("");
   const [imageStatus, setImageStatus] = useState("");
 
@@ -133,6 +134,7 @@ export default function Home() {
     setAnswer("");
     setImage(null);
     setQuiz(null);
+    setQuizProgress(null);
     setStatus("Searching reliable sources...");
 
     // Create inquiry ID upfront
@@ -232,6 +234,7 @@ export default function Home() {
         answer: generatedAnswer,
         image: generatedImage,
         quiz: null,
+        quizProgress: null,
         timestamp: new Date(),
       };
       setHistory((prev) => [newInquiry, ...prev]);
@@ -255,11 +258,24 @@ export default function Home() {
     }
   };
 
+  const handleQuizProgressChange = (progress: QuizProgress) => {
+    setQuizProgress(progress);
+    // Save progress to current inquiry in history
+    if (currentInquiryId) {
+      setHistory((prev) =>
+        prev.map((item) =>
+          item.id === currentInquiryId ? { ...item, quizProgress: progress } : item
+        )
+      );
+    }
+  };
+
   const handleSelectInquiry = (inquiry: Inquiry) => {
     setCurrentInquiryId(inquiry.id);
     setAnswer(inquiry.answer);
     setImage(inquiry.image);
     setQuiz(inquiry.quiz);
+    setQuizProgress(inquiry.quizProgress);
     setShowQuiz(false);
   };
 
@@ -345,6 +361,8 @@ export default function Home() {
         open={showQuiz}
         onClose={() => setShowQuiz(false)}
         quiz={quiz}
+        initialProgress={quizProgress}
+        onProgressChange={handleQuizProgressChange}
       />
 
       {/* Footer */}

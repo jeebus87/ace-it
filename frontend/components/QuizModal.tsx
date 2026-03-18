@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { X, CheckCircle, XCircle, Trophy } from "lucide-react";
+import { QuizProgress } from "./HistorySidebar";
 
 interface Question {
   id: number;
@@ -22,9 +23,11 @@ interface QuizModalProps {
   open: boolean;
   onClose: () => void;
   quiz: Quiz | null;
+  initialProgress?: QuizProgress | null;
+  onProgressChange?: (progress: QuizProgress) => void;
 }
 
-export function QuizModal({ open, onClose, quiz }: QuizModalProps) {
+export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChange }: QuizModalProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
@@ -33,29 +36,55 @@ export function QuizModal({ open, onClose, quiz }: QuizModalProps) {
   const [disabledChoices, setDisabledChoices] = useState<Set<string>>(new Set());
   const [completed, setCompleted] = useState(false);
   const [attempts, setAttempts] = useState<Record<number, number>>({});
+  const [allDisabledChoices, setAllDisabledChoices] = useState<Record<number, string[]>>({});
   const [typedAnswer, setTypedAnswer] = useState("");
   const [typedCorrect, setTypedCorrect] = useState(false);
 
-  // Track the quiz topic to detect when a NEW quiz is loaded
   const prevQuizTopicRef = useRef<string | null>(null);
 
-useEffect(() => {
-    // Only reset state when it's a NEW quiz (different topic)
+  useEffect(() => {
     const isNewQuiz = quiz?.topic !== prevQuizTopicRef.current;
-    
+
     if (quiz && isNewQuiz) {
       prevQuizTopicRef.current = quiz.topic;
-      setCurrentIndex(0);
-      setScore(0);
+
+      if (initialProgress) {
+        setCurrentIndex(initialProgress.currentIndex);
+        setScore(initialProgress.score);
+        setAttempts(initialProgress.attempts);
+        setCompleted(initialProgress.completed);
+        setAllDisabledChoices(initialProgress.disabledChoices);
+        const currentDisabled = initialProgress.disabledChoices[initialProgress.currentIndex] || [];
+        setDisabledChoices(new Set(currentDisabled));
+      } else {
+        setCurrentIndex(0);
+        setScore(0);
+        setAttempts({});
+        setCompleted(false);
+        setAllDisabledChoices({});
+        setDisabledChoices(new Set());
+      }
       setSelectedAnswer(null);
       setShowFeedback(false);
-      setDisabledChoices(new Set());
-      setCompleted(false);
-      setAttempts({});
       setTypedAnswer("");
       setTypedCorrect(false);
     }
-  }, [quiz?.topic]);
+  }, [quiz?.topic, initialProgress]);
+
+  useEffect(() => {
+    if (onProgressChange && quiz) {
+      const updatedDisabled = { ...allDisabledChoices };
+      updatedDisabled[currentIndex] = Array.from(disabledChoices);
+
+      onProgressChange({
+        currentIndex,
+        score,
+        attempts,
+        completed,
+        disabledChoices: updatedDisabled,
+      });
+    }
+  }, [currentIndex, score, attempts, completed, disabledChoices]);
 
   if (!open || !quiz) return null;
 
@@ -82,7 +111,12 @@ useEffect(() => {
     if (correct) {
       setScore((s) => s + 1);
     } else {
-      setDisabledChoices((prev) => new Set([...prev, choice]));
+      const newDisabled = new Set([...disabledChoices, choice]);
+      setDisabledChoices(newDisabled);
+      setAllDisabledChoices((prev) => ({
+        ...prev,
+        [currentIndex]: Array.from(newDisabled),
+      }));
     }
   };
 
@@ -97,10 +131,12 @@ useEffect(() => {
 
   const handleNext = () => {
     if (currentIndex < quiz.questions.length - 1) {
-      setCurrentIndex((i) => i + 1);
+      const nextIndex = currentIndex + 1;
+      setCurrentIndex(nextIndex);
       setSelectedAnswer(null);
       setShowFeedback(false);
-      setDisabledChoices(new Set());
+      const nextDisabled = allDisabledChoices[nextIndex] || [];
+      setDisabledChoices(new Set(nextDisabled));
       setTypedAnswer("");
       setTypedCorrect(false);
     } else {
@@ -114,7 +150,6 @@ useEffect(() => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[hsl(var(--background))]/95 p-4 overflow-y-auto">
       <div className="w-full max-w-2xl bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
-        {/* Header */}
         <div className="sticky top-0 bg-[hsl(var(--card))] border-b border-[hsl(var(--border))] p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -150,140 +185,47 @@ useEffect(() => {
             </div>
           )}
         </div>
-
-        {/* Content */}
         <div className="p-4 sm:p-6">
           {completed ? (
             <div className="text-center py-8">
-              <Trophy
-                className={`w-16 h-16 mx-auto mb-4 ${
-                  isPerfect ? "text-yellow-400" : "text-[hsl(var(--primary))]"
-                }`}
-              />
-              <h3 className="text-2xl font-bold mb-2">
-                {isPerfect ? "Perfect Score!" : "Mastery Achieved!"}
-              </h3>
-              <p className="text-[hsl(var(--muted-foreground))] mb-6">
-                {isPerfect
-                  ? "You got every question right on the first try!"
-                  : `You've demonstrated complete understanding.`}
-              </p>
-              <p className="text-lg mb-2">
-                Score: {score}/{quiz.questions.length}
-              </p>
-              <p className="text-sm text-[hsl(var(--muted-foreground))] mb-6">
-                Total attempts: {totalAttempts}
-              </p>
-              <button
-                onClick={onClose}
-                className="px-6 py-3 bg-[hsl(var(--primary))] text-white rounded-xl font-medium hover:opacity-90 transition-opacity"
-              >
-                Close Quiz
-              </button>
+              <Trophy className={`w-16 h-16 mx-auto mb-4 ${isPerfect ? "text-yellow-400" : "text-[hsl(var(--primary))]"}`} />
+              <h3 className="text-2xl font-bold mb-2">{isPerfect ? "Perfect Score!" : "Mastery Achieved!"}</h3>
+              <p className="text-[hsl(var(--muted-foreground))] mb-6">{isPerfect ? "You got every question right on the first try!" : "You have demonstrated complete understanding."}</p>
+              <p className="text-lg mb-2">Score: {score}/{quiz.questions.length}</p>
+              <p className="text-sm text-[hsl(var(--muted-foreground))] mb-6">Total attempts: {totalAttempts}</p>
+              <button onClick={onClose} className="px-6 py-3 bg-[hsl(var(--primary))] text-white rounded-xl font-medium hover:opacity-90 transition-opacity">Close Quiz</button>
             </div>
           ) : (
             <>
-              {/* Question */}
-              <div className="mb-6">
-                <p className="text-base sm:text-lg font-medium leading-relaxed">
-                  Q{currentIndex + 1}: {currentQuestion.question}
-                </p>
-              </div>
-
-              {/* Choices */}
+              <div className="mb-6"><p className="text-base sm:text-lg font-medium leading-relaxed">Q{currentIndex + 1}: {currentQuestion.question}</p></div>
               <div className="space-y-3 mb-6">
                 {(["A", "B", "C", "D"] as const).map((choice) => {
                   const isDisabled = disabledChoices.has(choice);
                   const isSelected = selectedAnswer === choice;
                   const isCorrectChoice = choice === currentQuestion.correct;
-
-                  let buttonClass =
-                    "w-full p-3 sm:p-4 text-left rounded-xl border-2 transition-all ";
-
-                  if (showFeedback && isSelected) {
-                    buttonClass += isCorrect
-                      ? "border-green-500 bg-green-500/10 text-green-400"
-                      : "border-red-500 bg-red-500/10 text-red-400";
-                  } else if (showFeedback && isCorrectChoice && !isCorrect) {
-                    buttonClass += "border-green-500 bg-green-500/10";
-                  } else if (isDisabled) {
-                    buttonClass +=
-                      "border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/50 opacity-50 cursor-not-allowed";
-                  } else {
-                    buttonClass +=
-                      "border-[hsl(var(--border))] bg-[hsl(var(--secondary))] hover:border-[hsl(var(--primary))] cursor-pointer";
-                  }
-
-                  return (
-                    <button
-                      key={choice}
-                      onClick={() => handleAnswer(choice)}
-                      disabled={isDisabled || showFeedback}
-                      className={buttonClass}
-                    >
-                      <span className="font-bold mr-2">{choice}.</span>
-                      {currentQuestion.choices[choice]}
-                    </button>
-                  );
+                  let buttonClass = "w-full p-3 sm:p-4 text-left rounded-xl border-2 transition-all ";
+                  if (showFeedback && isSelected) { buttonClass += isCorrect ? "border-green-500 bg-green-500/10 text-green-400" : "border-red-500 bg-red-500/10 text-red-400"; }
+                  else if (showFeedback && isCorrectChoice && !isCorrect) { buttonClass += "border-green-500 bg-green-500/10"; }
+                  else if (isDisabled) { buttonClass += "border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/50 opacity-50 cursor-not-allowed"; }
+                  else { buttonClass += "border-[hsl(var(--border))] bg-[hsl(var(--secondary))] hover:border-[hsl(var(--primary))] cursor-pointer"; }
+                  return (<button key={choice} onClick={() => handleAnswer(choice)} disabled={isDisabled || showFeedback} className={buttonClass}><span className="font-bold mr-2">{choice}.</span>{currentQuestion.choices[choice]}</button>);
                 })}
               </div>
-
-              {/* Feedback */}
               {showFeedback && (
-                <div
-                  className={`p-4 rounded-xl mb-6 ${
-                    isCorrect || typedCorrect
-                      ? "bg-green-500/10 border border-green-500/30"
-                      : "bg-red-500/10 border border-red-500/30"
-                  }`}
-                >
+                <div className={`p-4 rounded-xl mb-6 ${isCorrect || typedCorrect ? "bg-green-500/10 border border-green-500/30" : "bg-red-500/10 border border-red-500/30"}`}>
                   <div className="flex items-start gap-3">
-                    {isCorrect || typedCorrect ? (
-                      <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
-                    ) : (
-                      <XCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-                    )}
+                    {isCorrect || typedCorrect ? <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" /> : <XCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />}
                     <div className="flex-1">
-                      <p
-                        className={`font-medium mb-2 ${
-                          isCorrect || typedCorrect ? "text-green-400" : "text-red-400"
-                        }`}
-                      >
-                        {isCorrect
-                          ? attempts[currentIndex] === 1
-                            ? "Nailed it on the first try!"
-                            : "Got it!"
-                          : typedCorrect
-                          ? "Correct! You got it!"
-                          : "Not quite!"}
+                      <p className={`font-medium mb-2 ${isCorrect || typedCorrect ? "text-green-400" : "text-red-400"}`}>
+                        {isCorrect ? (attempts[currentIndex] === 1 ? "Nailed it on the first try!" : "Got it!") : typedCorrect ? "Correct! You got it!" : "Not quite!"}
                       </p>
-                      <p className="text-sm text-[hsl(var(--foreground))]/80">
-                        {currentQuestion.explanation}
-                      </p>
+                      <p className="text-sm text-[hsl(var(--foreground))]/80">{currentQuestion.explanation}</p>
                       {!isCorrect && !typedCorrect && (
                         <div className="mt-4 pt-4 border-t border-red-500/30">
-                          <p className="text-sm text-[hsl(var(--foreground))]/80 mb-2">
-                            Type the correct answer to continue:
-                          </p>
+                          <p className="text-sm text-[hsl(var(--foreground))]/80 mb-2">Type the correct answer to continue:</p>
                           <div className="flex gap-2">
-                            <input
-                              type="text"
-                              value={typedAnswer}
-                              onChange={(e) => setTypedAnswer(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  handleTypedAnswerSubmit();
-                                }
-                              }}
-                              placeholder="Type the correct answer..."
-                              className="flex-1 px-3 py-2 rounded-lg bg-[hsl(var(--background))] border border-[hsl(var(--border))] text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]"
-                            />
-                            <button
-                              onClick={handleTypedAnswerSubmit}
-                              className="px-4 py-2 bg-[hsl(var(--primary))] text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
-                            >
-                              Submit
-                            </button>
+                            <input type="text" value={typedAnswer} onChange={(e) => setTypedAnswer(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { handleTypedAnswerSubmit(); } }} placeholder="Type the correct answer..." className="flex-1 px-3 py-2 rounded-lg bg-[hsl(var(--background))] border border-[hsl(var(--border))] text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]" />
+                            <button onClick={handleTypedAnswerSubmit} className="px-4 py-2 bg-[hsl(var(--primary))] text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity">Submit</button>
                           </div>
                         </div>
                       )}
@@ -291,16 +233,9 @@ useEffect(() => {
                   </div>
                 </div>
               )}
-
-              {/* Next Button */}
               {showFeedback && (isCorrect || typedCorrect) && (
-                <button
-                  onClick={handleNext}
-                  className="w-full py-3 bg-[hsl(var(--primary))] text-white rounded-xl font-medium hover:opacity-90 transition-opacity"
-                >
-                  {currentIndex < quiz.questions.length - 1
-                    ? "Next Question"
-                    : "Complete Quiz!"}
+                <button onClick={handleNext} className="w-full py-3 bg-[hsl(var(--primary))] text-white rounded-xl font-medium hover:opacity-90 transition-opacity">
+                  {currentIndex < quiz.questions.length - 1 ? "Next Question" : "Complete Quiz!"}
                 </button>
               )}
             </>

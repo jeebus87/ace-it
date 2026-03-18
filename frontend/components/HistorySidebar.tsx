@@ -18,12 +18,21 @@ interface Quiz {
   difficulty?: string;
 }
 
+export interface QuizProgress {
+  currentIndex: number;
+  score: number;
+  attempts: Record<number, number>;
+  completed: boolean;
+  disabledChoices: Record<number, string[]>;
+}
+
 export interface Inquiry {
   id: string;
   query: string;
   answer: string;
   image: string | null;
   quiz: Quiz | null;
+  quizProgress: QuizProgress | null;
   timestamp: Date;
 }
 
