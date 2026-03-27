@@ -51,6 +51,7 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
 
   const prevQuizTopicRef = useRef<string | null>(null);
   const completionFiredRef = useRef(false);
+  const modalContentRef = useRef<HTMLDivElement>(null);
   const { playCorrect, playWrong, playComplete, playCombo } = useSound();
 
   const fireConfetti = () => {
@@ -119,9 +120,8 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
       completionFiredRef.current = true;
       confettiCleanup = fireConfetti();
       playComplete();
-      // Award perfect quiz bonus
-      const totalAttempts = Object.values(attempts).reduce((a, b) => a + b, 0);
-      const isPerfectScore = totalAttempts === quiz.questions.length;
+      // Award perfect quiz bonus - every question must be answered correctly on first try
+      const isPerfectScore = quiz.questions.every((_, i) => attempts[i] === 1);
       if (isPerfectScore && onPerfectQuiz) {
         const bonus = onPerfectQuiz(quiz.questions.length);
         setXPGained(bonus);
@@ -140,6 +140,33 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
   const currentQuestion = quiz.questions[currentIndex];
   const correctAnswerText = currentQuestion.choices[currentQuestion.correct as keyof typeof currentQuestion.choices];
   const normalizeText = (text: string) => text.toLowerCase().trim().replace(/[^\w\s]/g, "");
+
+  // Fuzzy match for typed answers - accepts contextually similar answers
+  const isFuzzyMatch = (typed: string, correct: string): boolean => {
+    const normalizedTyped = normalizeText(typed);
+    const normalizedCorrect = normalizeText(correct);
+
+    // Exact match
+    if (normalizedTyped === normalizedCorrect) return true;
+
+    // One contains the other (if typed is substantial enough)
+    if (normalizedCorrect.includes(normalizedTyped) && normalizedTyped.length >= Math.min(normalizedCorrect.length * 0.5, 10)) return true;
+    if (normalizedTyped.includes(normalizedCorrect)) return true;
+
+    // Word overlap check - filter out short/common words
+    const skipWords = new Set(["the", "a", "an", "is", "are", "was", "were", "of", "to", "in", "for", "on", "with", "as", "at", "by"]);
+    const typedWords = normalizedTyped.split(/\s+/).filter(w => w.length > 2 && !skipWords.has(w));
+    const correctWords = normalizedCorrect.split(/\s+/).filter(w => w.length > 2 && !skipWords.has(w));
+
+    if (correctWords.length === 0) return normalizedTyped === normalizedCorrect;
+
+    // Count matching words
+    const matchingWords = typedWords.filter(w => correctWords.some(cw => cw.includes(w) || w.includes(cw)));
+    const overlapRatio = matchingWords.length / correctWords.length;
+
+    // Accept if 70%+ of key words match
+    return overlapRatio >= 0.7;
+  };
 
   const handleAnswer = (choice: string) => {
     if (disabledChoices.has(choice) || showFeedback) return;
@@ -170,9 +197,12 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
   };
 
   const handleTypedAnswerSubmit = () => {
-    const normalized = normalizeText(typedAnswer);
-    const normalizedCorrect = normalizeText(correctAnswerText);
-    if (normalized === normalizedCorrect) { setTypedCorrect(true); playCorrect(); } else { playWrong(); }
+    if (isFuzzyMatch(typedAnswer, correctAnswerText)) {
+      setTypedCorrect(true);
+      playCorrect();
+    } else {
+      playWrong();
+    }
   };
 
   const handleNext = () => {
@@ -181,11 +211,14 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
       setCurrentIndex(nextIndex); setSelectedAnswer(null); setShowFeedback(false);
       const nextDisabled = allDisabledChoices[nextIndex] || [];
       setDisabledChoices(new Set(nextDisabled)); setTypedAnswer(""); setTypedCorrect(false);
+      // Scroll modal content to top for next question
+      modalContentRef.current?.scrollTo({ top: 0, behavior: "smooth" });
     } else { setCompleted(true); }
   };
 
   const totalAttempts = Object.values(attempts).reduce((a, b) => a + b, 0);
-  const isPerfect = totalAttempts === quiz.questions.length;
+  // Perfect score = every question answered correctly on first try
+  const isPerfect = quiz.questions.every((_, i) => attempts[i] === 1);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[hsl(var(--background))]/95 p-4 overflow-y-auto">
@@ -205,7 +238,7 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
           </div>
         </div>
       )}
-      <div className="w-full max-w-2xl bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-2xl shadow-2xl max-h-[85vh] overflow-y-auto pb-16 sm:pb-0">
+      <div ref={modalContentRef} className="w-full max-w-2xl bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-2xl shadow-2xl max-h-[85vh] overflow-y-auto pb-16 sm:pb-0">
         <div className="sticky top-0 bg-[hsl(var(--card))] border-b border-[hsl(var(--border))] p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <div>

@@ -14,7 +14,7 @@ CRITICAL REQUIREMENTS:
 3. Be surgically concise - eliminate all filler words and redundancy
 4. Use precise terminology where appropriate, but explain it clearly
 5. If information is insufficient, acknowledge limitations rather than guess
-6. Always use double quotes (") for quotations, never single quotes (')
+6. QUOTATION MARKS: Use double quotes (") for all quotations, cited text, and titles. Use apostrophes (') ONLY for contractions (don't, it's) and possessives (Newton's). Example correct: Einstein said, "Imagination is more important than knowledge." Example WRONG: Einstein said, 'Imagination is more important than knowledge.'
 
 FORMAT YOUR RESPONSE WITH THESE SECTIONS:
 

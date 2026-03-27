@@ -85,7 +85,7 @@ def generate_quiz(question: str, answer: str, difficulty: str = "intermediate") 
     try:
         client = genai.Client(api_key=api_key)
 
-        quiz_prompt = f"""Based on this study material, create exactly 10 multiple choice questions.
+        quiz_prompt = f"""Based on this study material, create exactly 10 quiz questions with a mix of question types.
 
 TOPIC: {question}
 
@@ -95,12 +95,21 @@ DIFFICULTY LEVEL: {difficulty.upper()}
 STUDY MATERIAL:
 {answer}
 
+QUESTION TYPES - Mix these throughout the quiz:
+1. MULTIPLE CHOICE (6-7 questions): Standard 4-option questions
+2. TRUE/FALSE (3-4 questions): Statement verification questions
+
 REQUIREMENTS:
 - Each question tests understanding, not memorization
 - 4 answer choices (A, B, C, D) per question
 - Only ONE correct answer per question
 - Include plausible distractors (wrong answers that seem reasonable)
 - Follow the difficulty guidelines above
+
+FOR TRUE/FALSE QUESTIONS:
+- Format the question as a statement to evaluate (e.g., "The mitochondria is the powerhouse of the cell.")
+- Use choices: A="True", B="False", C="It depends on context", D="Cannot be determined"
+- The correct answer should only be A or B (True or False)
 
 OUTPUT FORMAT (valid JSON only, no markdown, no code blocks):
 {{
@@ -116,18 +125,36 @@ OUTPUT FORMAT (valid JSON only, no markdown, no code blocks):
             }},
             "correct": "A",
             "explanation": "A is correct because... The other options are wrong because..."
+        }},
+        {{
+            "id": 2,
+            "question": "The Earth revolves around the Sun in approximately 365 days.",
+            "choices": {{
+                "A": "True",
+                "B": "False",
+                "C": "It depends on context",
+                "D": "Cannot be determined"
+            }},
+            "correct": "A",
+            "explanation": "This is true! The Earth takes about 365.25 days to complete one orbit around the Sun."
         }}
     ]
 }}
 
 CRITICAL: The "choices" field MUST be an object with keys "A", "B", "C", "D" where each value is the answer text string.
 
+QUOTATION MARK RULES (IMPORTANT):
+- Use double quotes (") for all quotations, cited text, and titles
+- Use apostrophes (') ONLY for contractions (don't, it's, can't) and possessives (Newton's)
+- Example correct: He said, "Hello there!"
+- Example correct: It's important to understand Newton's laws.
+- Example WRONG: He said, 'Hello there!'
+
 IMPORTANT FOR EXPLANATIONS:
 - Be casual and friendly, like a tutor helping a friend
 - For wrong answers, explain WHY that choice seems appealing but is incorrect
 - Guide them to the right thinking with simple analogies
 - Keep it conversational - use "you", contractions, and encouraging language
-- Always use double quotes (") for quotations, never single quotes (')
 
 Return ONLY valid JSON, no other text."""
 

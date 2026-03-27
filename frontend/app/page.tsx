@@ -8,6 +8,7 @@ import { QuizModal } from "@/components/QuizModal";
 import { DifficultyPrompt } from "@/components/DifficultyPrompt";
 import { HistorySidebar, Inquiry, QuizProgress } from "@/components/HistorySidebar";
 import { GraduationCap, Sparkles, ImageOff, BarChart3 } from "lucide-react";
+import { QuizGenerating } from "@/components/QuizGenerating";
 import Link from "next/link";
 import { SoundToggle } from "@/components/SoundToggle";
 import { StreakBadge } from "@/components/StreakBadge";
@@ -41,6 +42,7 @@ export default function Home() {
   const [quizProgress, setQuizProgress] = useState<QuizProgress | null>(null);
   const [status, setStatus] = useState("");
   const [imageStatus, setImageStatus] = useState("");
+  const [quizGenerating, setQuizGenerating] = useState(false);
 
   // Sound effects
   const { soundEnabled, toggleSound } = useSound();
@@ -98,7 +100,7 @@ export default function Home() {
     selectedDifficulty: string,
     inquiryId?: string
   ) => {
-    setStatus("Generating quiz...");
+    setQuizGenerating(true);
     try {
       const quizRes = await fetch("https://jeebus87--ace-it-backend-quiz.modal.run", {
         method: "POST",
@@ -126,7 +128,7 @@ export default function Home() {
     } catch (error) {
       console.error("Quiz generation error:", error);
     } finally {
-      setStatus("");
+      setQuizGenerating(false);
     }
   };
 
@@ -373,6 +375,9 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* Quiz Generating Indicator */}
+      <QuizGenerating visible={quizGenerating} />
 
       {/* Quiz Button */}
       {quiz && quiz.questions.length > 0 && (
