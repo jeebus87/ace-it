@@ -328,13 +328,18 @@ export default function Home() {
 
       {/* Header */}
       <header className="text-center mb-8 sm:mb-12">
+        {/* Logo - separate row on mobile */}
+        <div className="flex justify-center mb-4 sm:hidden">
+          <GraduationCap className="w-12 h-12 text-[hsl(var(--primary))]" />
+        </div>
+        {/* Title with inline logo on desktop */}
         <div className="flex items-center justify-center gap-3 mb-3">
-          <GraduationCap className="w-8 h-8 sm:w-10 sm:h-10 text-[hsl(var(--primary))]" />
+          <GraduationCap className="hidden sm:block w-10 h-10 text-[hsl(var(--primary))]" />
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-[hsl(var(--primary))] to-blue-400 bg-clip-text text-transparent">
             Ace-It
           </h1>
         </div>
-        <p className="text-sm sm:text-base text-[hsl(var(--muted-foreground))] max-w-md mx-auto">
+        <p className="text-sm sm:text-base text-[hsl(var(--muted-foreground))] max-w-md mx-auto px-4">
           Your AI-powered study assistant. Search any topic, get expert answers,
           and master with quizzes.
         </p>
