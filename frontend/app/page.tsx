@@ -31,6 +31,7 @@ interface Quiz {
   topic: string;
   total: number;
   difficulty?: string;
+  quizId?: string;
 }
 
 export default function Home() {
@@ -121,7 +122,7 @@ export default function Home() {
       });
       const quizData = await quizRes.json();
       if (quizData.questions?.length > 0) {
-        const newQuiz = { ...quizData, difficulty: selectedDifficulty };
+        const newQuiz = { ...quizData, difficulty: selectedDifficulty, quizId: `quiz-${Date.now()}` };
         setQuiz(newQuiz);
         // Update history with quiz
         const updateId = inquiryId || currentInquiryId;

@@ -20,6 +20,7 @@ interface Quiz {
   topic: string;
   total: number;
   difficulty?: string;
+  quizId?: string;
 }
 
 interface QuizModalProps {
@@ -52,7 +53,7 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
   const [totalXPGained, setTotalXPGained] = useState(0);
   const [validating, setValidating] = useState(false);
 
-  const prevQuizTopicRef = useRef<string | null>(null);
+  const prevQuizIdRef = useRef<string | null>(null);
   const completionFiredRef = useRef(false);
   const modalContentRef = useRef<HTMLDivElement>(null);
   const { playCorrect, playWrong, playComplete, playCombo } = useSound();
@@ -89,9 +90,11 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
   };
 
   useEffect(() => {
-    const isNewQuiz = quiz?.topic !== prevQuizTopicRef.current;
+    // Use quizId (falls back to topic) to detect new quizzes - handles redo on same topic
+    const quizKey = quiz?.quizId || quiz?.topic;
+    const isNewQuiz = quizKey !== prevQuizIdRef.current;
     if (quiz && isNewQuiz) {
-      prevQuizTopicRef.current = quiz.topic;
+      prevQuizIdRef.current = quizKey || null;
       completionFiredRef.current = false; // Reset completion flag for new quiz
       if (initialProgress) {
         setCurrentIndex(initialProgress.currentIndex);
@@ -106,7 +109,7 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
       }
       setSelectedAnswer(null); setShowFeedback(false); setTypedAnswer(""); setTypedCorrect(false); setCombo(0);
     }
-  }, [quiz?.topic, initialProgress]);
+  }, [quiz?.quizId, quiz?.topic, initialProgress]);
 
   useEffect(() => {
     if (onProgressChange && quiz) {
