@@ -123,7 +123,8 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
       confettiCleanup = fireConfetti();
       playComplete();
       // Award perfect quiz bonus - every question must be answered correctly on first try
-      const isPerfectScore = quiz.questions.every((_, i) => attempts[i] === 1);
+      // Must have full score AND each question attempted only once
+      const isPerfectScore = score === quiz.questions.length && quiz.questions.every((_, i) => attempts[i] === 1);
       if (isPerfectScore && onPerfectQuiz) {
         const bonus = onPerfectQuiz(quiz.questions.length);
         setXPGained(bonus);
@@ -232,7 +233,8 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
 
   const totalAttempts = Object.values(attempts).reduce((a, b) => a + b, 0);
   // Perfect score = every question answered correctly on first try
-  const isPerfect = quiz.questions.every((_, i) => attempts[i] === 1);
+  // Must have full score AND each question attempted only once
+  const isPerfect = score === quiz.questions.length && quiz.questions.every((_, i) => attempts[i] === 1);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[hsl(var(--background))]/95 p-4 overflow-y-auto">
