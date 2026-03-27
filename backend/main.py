@@ -68,6 +68,93 @@ def quiz(data: dict) -> dict:
     return generate_quiz(question, answer, difficulty)
 
 
+@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")])
+@modal.fastapi_endpoint(method="POST")
+def validate_answer(data: dict) -> dict:
+    """
+    Validate if a typed answer is acceptable using Gemini Flash.
+    Used when user types answer after getting a quiz question wrong.
+
+    Args:
+        typed: The user's typed answer
+        correct: The correct answer text
+        question: The quiz question (for context)
+
+    Returns:
+        Dict with is_correct boolean and explanation
+    """
+    from google import genai
+    from google.genai import types
+
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        return {"error": "GEMINI_API_KEY not configured"}
+
+    typed = data.get("typed", "").strip()
+    correct = data.get("correct", "").strip()
+    question = data.get("question", "").strip()
+
+    if not typed or not correct:
+        return {"error": "typed and correct are required"}
+
+    # Quick exact match check (case-insensitive)
+    if typed.lower() == correct.lower():
+        return {"is_correct": True, "reason": "Exact match"}
+
+    try:
+        client = genai.Client(api_key=api_key)
+
+        prompt = f"""You are evaluating a student's typed answer in a quiz.
+
+QUIZ QUESTION: {question}
+
+CORRECT ANSWER: {correct}
+
+STUDENT'S TYPED ANSWER: {typed}
+
+Is the student's answer acceptable? Consider:
+- Typos and minor spelling errors should be accepted
+- Synonyms and paraphrasing should be accepted
+- Missing articles (the, a, an) should be accepted
+- Different word order with same meaning should be accepted
+- Partial answers that capture the key concept should be accepted
+- Completely wrong or unrelated answers should be rejected
+
+Reply with ONLY one word: YES or NO"""
+
+        response = client.models.generate_content(
+            model="gemini-3-flash-preview",
+            contents=prompt
+        )
+
+        # Extract text from response
+        response_text = ""
+        if hasattr(response, 'text') and response.text:
+            response_text = response.text
+        elif hasattr(response, 'candidates') and response.candidates:
+            candidate = response.candidates[0]
+            if hasattr(candidate, 'content') and candidate.content:
+                if hasattr(candidate.content, 'parts') and candidate.content.parts:
+                    response_text = candidate.content.parts[0].text
+
+        answer = response_text.strip().upper() if response_text else ""
+        is_correct = answer.startswith("YES")
+
+        return {
+            "is_correct": is_correct,
+            "typed": typed,
+            "correct": correct
+        }
+
+    except Exception as e:
+        # On error, fall back to simple comparison
+        return {
+            "is_correct": typed.lower() == correct.lower(),
+            "error": str(e),
+            "fallback": True
+        }
+
+
 # =============================================================================
 # TEXT-TO-SPEECH
 # =============================================================================

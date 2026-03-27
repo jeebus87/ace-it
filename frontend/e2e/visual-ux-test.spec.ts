@@ -668,4 +668,76 @@ test.describe("API Endpoint Tests - Gemini Features", () => {
       expect(data1.error).toBeTruthy();
     }
   });
+
+  test("Validate-answer endpoint accepts correct answers with typos", async ({ request }) => {
+    console.log("Testing /validate-answer with Gemini Flash...");
+
+    // Test 1: Exact match should pass
+    const exactMatch = await request.post(`${API_BASE}-validate-answer.modal.run`, {
+      data: {
+        typed: "photosynthesis",
+        correct: "photosynthesis",
+        question: "What is the process plants use to make food?",
+      },
+      timeout: 30000,
+    });
+    const exactData = await exactMatch.json();
+    expect(exactData.is_correct).toBe(true);
+    console.log("  Exact match: PASSED");
+
+    // Test 2: Typo should pass
+    const typoMatch = await request.post(`${API_BASE}-validate-answer.modal.run`, {
+      data: {
+        typed: "photosynthisis",
+        correct: "photosynthesis",
+        question: "What is the process plants use to make food?",
+      },
+      timeout: 30000,
+    });
+    const typoData = await typoMatch.json();
+    expect(typoData.is_correct).toBe(true);
+    console.log("  Typo (photosynthisis): PASSED");
+
+    // Test 3: Synonym/paraphrase should pass
+    const synonymMatch = await request.post(`${API_BASE}-validate-answer.modal.run`, {
+      data: {
+        typed: "the powerhouse of the cell",
+        correct: "mitochondria",
+        question: "What organelle produces energy?",
+      },
+      timeout: 30000,
+    });
+    const synonymData = await synonymMatch.json();
+    expect(synonymData.is_correct).toBe(true);
+    console.log("  Synonym (powerhouse of cell = mitochondria): PASSED");
+
+    // Test 4: Missing article should pass
+    const missingArticle = await request.post(`${API_BASE}-validate-answer.modal.run`, {
+      data: {
+        typed: "cell membrane",
+        correct: "The cell membrane",
+        question: "What controls what enters the cell?",
+      },
+      timeout: 30000,
+    });
+    const articleData = await missingArticle.json();
+    expect(articleData.is_correct).toBe(true);
+    console.log("  Missing article: PASSED");
+
+    // Test 5: Wrong answer should be rejected
+    const wrongAnswer = await request.post(`${API_BASE}-validate-answer.modal.run`, {
+      data: {
+        typed: "nucleus",
+        correct: "mitochondria",
+        question: "What is the powerhouse of the cell?",
+      },
+      timeout: 30000,
+    });
+    const wrongData = await wrongAnswer.json();
+    expect(wrongData.is_correct).toBe(false);
+    console.log("  Wrong answer (nucleus vs mitochondria): CORRECTLY REJECTED");
+
+    console.log("Validate-answer endpoint test passed!");
+  });
 });
+

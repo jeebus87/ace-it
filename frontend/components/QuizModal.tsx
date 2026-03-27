@@ -49,6 +49,7 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
   const [comboText, setComboText] = useState("");
   const [xpGained, setXPGained] = useState<number | null>(null);
   const [totalXPGained, setTotalXPGained] = useState(0);
+  const [validating, setValidating] = useState(false);
 
   const prevQuizTopicRef = useRef<string | null>(null);
   const completionFiredRef = useRef(false);
@@ -169,12 +170,47 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
     }
   };
 
-  const handleTypedAnswerSubmit = () => {
-    if (isFuzzyMatch(typedAnswer, correctAnswerText)) {
-      setTypedCorrect(true);
-      playCorrect();
-    } else {
-      playWrong();
+  const handleTypedAnswerSubmit = async () => {
+    if (!typedAnswer.trim()) return;
+
+    setValidating(true);
+    try {
+      // Call Gemini to validate the answer
+      const response = await fetch("https://jeebus87--ace-it-backend-validate-answer.modal.run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          typed: typedAnswer,
+          correct: correctAnswerText,
+          question: currentQuestion.question,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.is_correct) {
+        setTypedCorrect(true);
+        playCorrect();
+      } else {
+        // Gemini said no - double check with local fuzzy match as safety net
+        if (isFuzzyMatch(typedAnswer, correctAnswerText)) {
+          setTypedCorrect(true);
+          playCorrect();
+        } else {
+          playWrong();
+        }
+      }
+    } catch (error) {
+      // API failed - fall back to local fuzzy matching
+      console.error("Validation API error:", error);
+      if (isFuzzyMatch(typedAnswer, correctAnswerText)) {
+        setTypedCorrect(true);
+        playCorrect();
+      } else {
+        playWrong();
+      }
+    } finally {
+      setValidating(false);
     }
   };
 
@@ -279,8 +315,8 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
                         <div className="mt-4 pt-4 border-t border-red-500/30">
                           <p className="text-sm text-[hsl(var(--foreground))]/80 mb-2">Type the correct answer to continue:</p>
                           <div className="flex gap-2">
-                            <input type="text" value={typedAnswer} onChange={(e) => setTypedAnswer(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") handleTypedAnswerSubmit(); }} placeholder="Type the correct answer..." className="flex-1 px-4 py-3 rounded-lg bg-[hsl(var(--background))] border border-[hsl(var(--border))] text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]" />
-                            <button onClick={handleTypedAnswerSubmit} className="px-5 py-3 bg-[hsl(var(--primary))] text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity">Submit</button>
+                            <input type="text" value={typedAnswer} onChange={(e) => setTypedAnswer(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !validating) handleTypedAnswerSubmit(); }} placeholder="Type the correct answer..." className="flex-1 px-4 py-3 rounded-lg bg-[hsl(var(--background))] border border-[hsl(var(--border))] text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]" disabled={validating} />
+                            <button onClick={handleTypedAnswerSubmit} disabled={validating} className="px-5 py-3 bg-[hsl(var(--primary))] text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50">{validating ? "Checking..." : "Submit"}</button>
                           </div>
                         </div>
                       )}
