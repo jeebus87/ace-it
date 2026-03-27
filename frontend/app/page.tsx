@@ -334,10 +334,10 @@ export default function Home() {
       />
 
       {/* Stats Link & Controls */}
-      <div className="fixed top-4 right-4 z-40 flex items-center gap-2">
+      <div className="fixed top-4 right-4 z-40 flex items-center gap-3 sm:gap-2">
         <Link
           href="/stats"
-          className="p-2 rounded-lg hover:bg-[hsl(var(--secondary))] transition-colors"
+          className="p-3 rounded-lg hover:bg-[hsl(var(--secondary))] transition-colors"
           title="View Stats"
         >
           <BarChart3 className="w-5 h-5 text-[hsl(var(--muted-foreground))]" />

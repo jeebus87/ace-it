@@ -35,12 +35,12 @@ export function SearchBar({ onSearch, loading }: SearchBarProps) {
           placeholder="What would you like to study? (Enter to search, Shift+Enter for new line)"
           disabled={loading}
           rows={2}
-          className="w-full px-4 py-4 pr-14 text-base sm:text-lg bg-[hsl(var(--secondary))] border border-[hsl(var(--border))] rounded-xl text-[hsl(var(--foreground))] placeholder-[hsl(var(--muted-foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))] focus:border-transparent resize-none disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full px-4 py-4 pr-16 text-base sm:text-lg bg-[hsl(var(--secondary))] border border-[hsl(var(--border))] rounded-xl text-[hsl(var(--foreground))] placeholder-[hsl(var(--muted-foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))] focus:border-transparent resize-none disabled:opacity-50 disabled:cursor-not-allowed"
         />
         <button
           onClick={handleSubmit}
           disabled={loading || !query.trim()}
-          className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-[hsl(var(--primary))] text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          className="absolute right-3 top-1/2 -translate-y-1/2 p-3 rounded-lg bg-[hsl(var(--primary))] text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
         >
           {loading ? (
             <Loader2 className="w-5 h-5 animate-spin" />

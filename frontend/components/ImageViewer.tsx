@@ -30,14 +30,14 @@ export function ImageViewer({ src }: ImageViewerProps) {
             <div className="flex gap-2">
               <button
                 onClick={() => setIsExpanded(true)}
-                className="p-2 rounded-lg hover:bg-[hsl(var(--secondary))] transition-colors"
+                className="p-3 rounded-lg hover:bg-[hsl(var(--secondary))] transition-colors"
                 title="View full size"
               >
                 <ZoomIn className="w-4 h-4" />
               </button>
               <button
                 onClick={handleDownload}
-                className="p-2 rounded-lg hover:bg-[hsl(var(--secondary))] transition-colors"
+                className="p-3 rounded-lg hover:bg-[hsl(var(--secondary))] transition-colors"
                 title="Download image"
               >
                 <Download className="w-4 h-4" />
@@ -51,7 +51,7 @@ export function ImageViewer({ src }: ImageViewerProps) {
             <img
               src={src}
               alt="Educational visual explanation"
-              className="w-full h-auto max-h-80 object-contain bg-[hsl(var(--secondary))]"
+              className="w-full h-auto max-h-60 sm:max-h-80 object-contain bg-[hsl(var(--secondary))]"
             />
           </div>
           <p className="text-xs text-[hsl(var(--muted-foreground))] mt-2 text-center">
@@ -68,7 +68,7 @@ export function ImageViewer({ src }: ImageViewerProps) {
         >
           <button
             onClick={() => setIsExpanded(false)}
-            className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+            className="absolute top-4 right-4 p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
           >
             <X className="w-6 h-6 text-white" />
           </button>
@@ -77,7 +77,7 @@ export function ImageViewer({ src }: ImageViewerProps) {
               e.stopPropagation();
               handleDownload();
             }}
-            className="absolute top-4 right-16 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+            className="absolute top-4 right-20 p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
           >
             <Download className="w-6 h-6 text-white" />
           </button>

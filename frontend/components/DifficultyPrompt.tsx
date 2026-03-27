@@ -41,7 +41,7 @@ export function DifficultyPrompt({ open, onSelect }: DifficultyPromptProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[hsl(var(--background))]/95 p-4">
-      <div className="w-full max-w-md bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-2xl shadow-2xl">
+      <div className="w-full max-w-md bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-2xl shadow-2xl max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="p-4 sm:p-6 border-b border-[hsl(var(--border))]">
           <h2 className="text-xl sm:text-2xl font-bold text-[hsl(var(--primary))]">
@@ -53,7 +53,7 @@ export function DifficultyPrompt({ open, onSelect }: DifficultyPromptProps) {
         </div>
 
         {/* Difficulty Options */}
-        <div className="p-4 sm:p-6 space-y-3">
+        <div className="p-4 sm:p-6 space-y-3 overflow-y-auto flex-1">
           {difficulties.map((diff) => {
             const Icon = diff.icon;
             const isSelected = selected === diff.id;

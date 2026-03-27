@@ -69,8 +69,8 @@ export function HistorySidebar({
       {/* Toggle Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`fixed top-4 z-50 p-2 rounded-lg bg-[hsl(var(--card))] border border-[hsl(var(--border))] shadow-lg hover:bg-[hsl(var(--secondary))] transition-all ${
-          isOpen ? "left-72" : "left-4"
+        className={`fixed top-4 z-50 p-3 rounded-lg bg-[hsl(var(--card))] border border-[hsl(var(--border))] shadow-lg hover:bg-[hsl(var(--secondary))] transition-all ${
+          isOpen ? "left-[calc(85vw+0.5rem)] sm:left-[18.5rem]" : "left-4"
         }`}
         title={isOpen ? "Close history" : "View history"}
       >
@@ -86,7 +86,7 @@ export function HistorySidebar({
 
       {/* Sidebar */}
       <div
-        className={`fixed top-0 left-0 h-full w-72 bg-[hsl(var(--card))] border-r border-[hsl(var(--border))] shadow-xl z-40 transform transition-transform duration-300 ${
+        className={`fixed top-0 left-0 h-full w-[85vw] sm:w-72 bg-[hsl(var(--card))] border-r border-[hsl(var(--border))] shadow-xl z-40 transform transition-transform duration-300 ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
