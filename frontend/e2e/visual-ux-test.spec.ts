@@ -504,6 +504,38 @@ test.describe("API Endpoint Tests - Gemini Features", () => {
     console.log("Generate endpoint test passed!");
   });
 
+  test("Generate endpoint returns numbered real-world examples", async ({ request }) => {
+    console.log("Testing /generate for numbered Real-World Examples...");
+
+    const response = await request.post(`${API_BASE}-generate.modal.run`, {
+      data: { question: "What are the amendments in the Bill of Rights?" },
+      timeout: 120000,
+    });
+
+    expect(response.ok()).toBeTruthy();
+    const data = await response.json();
+
+    // Should have answer with Real-World Examples section
+    expect(data.answer).toBeTruthy();
+    expect(data.answer).toContain("Real-World Examples");
+
+    // Extract the Real-World Examples section
+    const examplesMatch = data.answer.match(/## Real-World Examples([\s\S]*?)(?=##|$)/);
+    expect(examplesMatch).toBeTruthy();
+
+    const examplesSection = examplesMatch![1];
+
+    // Should have numbered examples (1. 2. 3. etc.)
+    const numberedPattern = /^\d+\.\s/gm;
+    const matches = examplesSection.match(numberedPattern);
+
+    expect(matches).toBeTruthy();
+    expect(matches!.length).toBeGreaterThanOrEqual(10);
+
+    console.log(`Found ${matches!.length} numbered examples`);
+    console.log("Numbered examples test passed!");
+  });
+
   test("Quiz endpoint returns structured output", async ({ request }) => {
     console.log("Testing /quiz with structured output...");
 

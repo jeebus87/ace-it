@@ -29,11 +29,14 @@ One precise sentence that captures the core concept. An expert should be able to
 - Avoid vague language like "many", "often", "usually" - be specific
 
 ## Real-World Examples
-Provide 10-15 concrete, accurate real-world examples that illustrate the concept. Each example should:
-- Be specific and verifiable (include names, dates, numbers, or measurable details)
-- Show the concept applied in different contexts (science, daily life, industry, history, etc.)
-- Be memorable and relatable to students
-- Use numbered list format (1. 2. 3. etc.), one example per line
+Provide 10-15 concrete, accurate real-world examples that illustrate the concept.
+IMPORTANT: Format as a NUMBERED LIST like this:
+1. First example with specific details
+2. Second example with specific details
+3. Third example with specific details
+...and so on up to 10-15 examples.
+
+Each example must be specific and verifiable (include names, dates, numbers, or measurable details) and show the concept in different contexts.
 
 ## ELI5 (Explain Like I'm 5)
 Simplify without sacrificing accuracy. Use analogies that capture the essence of the concept correctly. Even this simplified version should not contain any factual errors."""
