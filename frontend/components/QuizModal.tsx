@@ -187,22 +187,27 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
       });
 
       const data = await response.json();
+      console.log("[Quiz] API Response:", JSON.stringify(data));
 
       if (data.is_correct) {
+        console.log("[Quiz] API accepted answer");
         setTypedCorrect(true);
         playCorrect();
       } else {
+        console.log("[Quiz] API rejected, trying fuzzy match");
         // Gemini said no - double check with local fuzzy match as safety net
         if (isFuzzyMatch(typedAnswer, correctAnswerText)) {
+          console.log("[Quiz] Fuzzy match accepted");
           setTypedCorrect(true);
           playCorrect();
         } else {
+          console.log("[Quiz] Fuzzy match also rejected");
           playWrong();
         }
       }
     } catch (error) {
       // API failed - fall back to local fuzzy matching
-      console.error("Validation API error:", error);
+      console.error("[Quiz] Validation API error:", error);
       if (isFuzzyMatch(typedAnswer, correctAnswerText)) {
         setTypedCorrect(true);
         playCorrect();

@@ -104,23 +104,38 @@ def validate_answer(data: dict) -> dict:
     try:
         client = genai.Client(api_key=api_key)
 
-        prompt = f"""You are evaluating a student's typed answer in a quiz.
+        prompt = f"""You are a LENIENT quiz grader evaluating a student's typed answer.
 
 QUIZ QUESTION: {question}
-
 CORRECT ANSWER: {correct}
+STUDENT'S ANSWER: {typed}
 
-STUDENT'S TYPED ANSWER: {typed}
+Your job is to determine if the student KNOWS the answer, not if they typed it perfectly.
 
-Is the student's answer acceptable? Consider:
-- Typos and minor spelling errors should be accepted
-- Synonyms and paraphrasing should be accepted
-- Missing articles (the, a, an) should be accepted
-- Different word order with same meaning should be accepted
-- Partial answers that capture the key concept should be accepted
-- Completely wrong or unrelated answers should be rejected
+ACCEPT the answer (say YES) if ANY of these apply:
+- The core concept/meaning matches (even if worded differently)
+- Contains typos or spelling errors but the intent is clear
+- Missing or extra words (articles, prepositions) but meaning is preserved
+- Informal or simplified language that conveys the same idea
+- Abbreviations or alternate forms of the same term
+- The answer contains the key terms from the correct answer
+- A reasonable person would recognize they mean the same thing
 
-Reply with ONLY one word: YES or NO"""
+REJECT the answer (say NO) ONLY if:
+- The answer is factually incorrect or contradicts the correct answer
+- The answer is completely unrelated or nonsensical
+- The answer names a different concept entirely
+
+IMPORTANT: Be generous! Students are learning. If they demonstrate understanding of the concept, accept it.
+
+Examples of what to ACCEPT:
+- "mitocondria" for "mitochondria" (typo)
+- "powerhouse of cell" for "mitochondria" (description)
+- "cell energy maker" for "mitochondria" (simplified)
+- "PHOTOSYNTHESIS" for "photosynthesis" (case)
+- "the cell membrane" for "cell membrane" (extra article)
+
+Reply with ONLY: YES or NO"""
 
         response = client.models.generate_content(
             model="gemini-3-flash-preview",
