@@ -327,7 +327,7 @@ export default function Home() {
       </div>
 
       {/* Header */}
-      <header className="text-center mb-8 sm:mb-12">
+      <header className="text-center mt-24 mb-8 sm:mb-12">
         {/* Logo - separate row on mobile */}
         <div className="flex justify-center mb-4 sm:hidden">
           <GraduationCap className="w-12 h-12 text-[hsl(var(--primary))]" />
