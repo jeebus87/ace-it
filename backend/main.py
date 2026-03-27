@@ -76,16 +76,17 @@ def quiz(data: dict) -> dict:
 @modal.fastapi_endpoint(method="POST")
 def speak(data: dict) -> dict:
     """
-    Convert text to speech using Gemini TTS.
+    Convert text to speech using Gemini Live API.
 
     Args:
         text: Text to convert to speech
         voice: Voice name (default: "Puck" - upbeat)
-               Options: Zephyr, Puck, Kore, Fenrir, Enceladus, etc.
+               Options: Aoede, Charon, Fenrir, Kore, Puck, etc.
 
     Returns:
         Dict with base64-encoded audio data
     """
+    import asyncio
     from google import genai
     from google.genai import types
 
@@ -99,37 +100,55 @@ def speak(data: dict) -> dict:
     if not text:
         return {"error": "No text provided"}
 
-    try:
+    # Limit text length for TTS
+    if len(text) > 1000:
+        text = text[:1000] + "..."
+
+    async def generate_speech():
         client = genai.Client(api_key=api_key)
 
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=text,
-            config=types.GenerateContentConfig(
-                response_modalities=["AUDIO"],
-                speech_config=types.SpeechConfig(
-                    voice_config=types.VoiceConfig(
-                        prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                            voice_name=voice
-                        )
-                    )
-                )
-            )
-        )
-
-        # Extract audio data
-        if response.candidates and response.candidates[0].content.parts:
-            for part in response.candidates[0].content.parts:
-                if hasattr(part, 'inline_data') and part.inline_data:
-                    audio_data = part.inline_data.data
-                    mime_type = part.inline_data.mime_type
-                    return {
-                        "audio": base64.b64encode(audio_data).decode('utf-8'),
-                        "mime_type": mime_type
+        config = {
+            "response_modalities": ["AUDIO"],
+            "speech_config": {
+                "voice_config": {
+                    "prebuilt_voice_config": {
+                        "voice_name": voice
                     }
+                }
+            }
+        }
 
+        audio_chunks = []
+
+        async with client.aio.live.connect(
+            model="gemini-live-2.5-flash-preview",
+            config=config
+        ) as session:
+            # Send the text to be spoken
+            await session.send_client_content(
+                turns=[{"role": "user", "parts": [{"text": f"Please read this text aloud: {text}"}]}],
+                turn_complete=True
+            )
+
+            # Collect audio response
+            async for msg in session.receive():
+                if msg.server_content and msg.server_content.model_turn:
+                    for part in msg.server_content.model_turn.parts:
+                        if hasattr(part, 'inline_data') and part.inline_data:
+                            audio_chunks.append(part.inline_data.data)
+                if msg.server_content and msg.server_content.turn_complete:
+                    break
+
+        if audio_chunks:
+            combined_audio = b''.join(audio_chunks)
+            return {
+                "audio": base64.b64encode(combined_audio).decode('utf-8'),
+                "mime_type": "audio/pcm;rate=24000"
+            }
         return {"error": "No audio generated"}
 
+    try:
+        return asyncio.run(generate_speech())
     except Exception as e:
         return {"error": str(e)}
 
@@ -309,7 +328,6 @@ def solve(data: dict) -> dict:
         Dict with explanation, code, result, and optional plot
     """
     from google import genai
-    from google.genai import types
 
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
@@ -323,10 +341,10 @@ def solve(data: dict) -> dict:
     try:
         client = genai.Client(api_key=api_key)
 
-        response = client.models.generate_content(
+        # Use Interactions API with code_execution tool
+        interaction = client.interactions.create(
             model="gemini-2.5-flash",
-            contents=f"""Solve this problem step by step. Use Python code to verify calculations.
-If it involves graphing, use matplotlib to create a visualization.
+            input=f"""Solve this problem step by step. Use Python code to verify calculations.
 
 Problem: {problem}
 
@@ -334,12 +352,10 @@ Provide:
 1. Step-by-step explanation
 2. Python code to solve/verify
 3. Final answer""",
-            config=types.GenerateContentConfig(
-                tools=[types.Tool(code_execution=types.CodeExecution())]
-            )
+            tools=[{"type": "code_execution"}]
         )
 
-        # Extract code and execution results
+        # Extract the response
         result = {
             "explanation": "",
             "code": "",
@@ -347,14 +363,21 @@ Provide:
             "problem": problem
         }
 
-        if response.candidates and response.candidates[0].content.parts:
-            for part in response.candidates[0].content.parts:
-                if hasattr(part, 'text') and part.text:
-                    result["explanation"] += part.text + "\n"
-                elif hasattr(part, 'executable_code') and part.executable_code:
-                    result["code"] = part.executable_code.code
-                elif hasattr(part, 'code_execution_result') and part.code_execution_result:
-                    result["output"] = part.code_execution_result.output
+        # Get the final output from interaction
+        if interaction.outputs:
+            for output in interaction.outputs:
+                if hasattr(output, 'text') and output.text:
+                    result["explanation"] += output.text + "\n"
+                if hasattr(output, 'code') and output.code:
+                    result["code"] = output.code
+                if hasattr(output, 'code_execution_result') and output.code_execution_result:
+                    result["output"] = output.code_execution_result
+
+        # If no structured output, use the last text output
+        if not result["explanation"] and interaction.outputs:
+            last_output = interaction.outputs[-1]
+            if hasattr(last_output, 'text'):
+                result["explanation"] = last_output.text
 
         return result
 
@@ -366,14 +389,14 @@ Provide:
 # CONTEXT CACHING - Follow-up questions
 # =============================================================================
 
-# In-memory cache for simplicity (use Redis in production)
-_context_cache = {}
+# In-memory cache for chat sessions (use Redis in production)
+_chat_cache = {}
 
 @app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")])
 @modal.fastapi_endpoint(method="POST")
 def follow_up(data: dict) -> dict:
     """
-    Ask follow-up questions using cached context.
+    Ask follow-up questions using chat sessions.
 
     Args:
         session_id: Session ID from previous answer
@@ -400,29 +423,37 @@ def follow_up(data: dict) -> dict:
     try:
         client = genai.Client(api_key=api_key)
 
-        # Build conversation history
-        if session_id and session_id in _context_cache:
-            history = _context_cache[session_id]
+        # Create or retrieve chat session
+        if session_id and session_id in _chat_cache:
+            # Retrieve existing chat history and create new chat with it
+            history = _chat_cache[session_id]
+            chat = client.chats.create(
+                model="gemini-2.5-flash",
+                history=history
+            )
         else:
+            # Create new session
             session_id = f"session-{int(time.time() * 1000)}"
-            history = []
+
             if context:
-                history.append({"role": "user", "parts": [f"Study material:\n{context}"]})
-                history.append({"role": "model", "parts": ["I've reviewed the material. What would you like to know?"]})
+                # Create chat with system context
+                chat = client.chats.create(
+                    model="gemini-2.5-flash",
+                    config=types.GenerateContentConfig(
+                        system_instruction=f"You are a helpful study assistant. Use this context to answer questions:\n\n{context}"
+                    )
+                )
+            else:
+                chat = client.chats.create(model="gemini-2.5-flash")
 
-        # Add current question
-        history.append({"role": "user", "parts": [question]})
+        # Send the question
+        response = chat.send_message(question)
 
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=history
-        )
-
-        # Add response to history
-        history.append({"role": "model", "parts": [response.text]})
-
-        # Cache the conversation (limit to last 20 turns)
-        _context_cache[session_id] = history[-20:]
+        # Cache the chat history (limit to last 20 turns)
+        history = chat.get_history()
+        if len(history) > 20:
+            history = history[-20:]
+        _chat_cache[session_id] = history
 
         return {
             "answer": response.text,
