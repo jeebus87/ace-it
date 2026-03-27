@@ -8,6 +8,38 @@ from google import genai
 from google.genai import types
 
 
+# JSON Schema for guaranteed valid quiz structure
+QUIZ_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "questions": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "integer"},
+                    "question": {"type": "string"},
+                    "choices": {
+                        "type": "object",
+                        "properties": {
+                            "A": {"type": "string"},
+                            "B": {"type": "string"},
+                            "C": {"type": "string"},
+                            "D": {"type": "string"}
+                        },
+                        "required": ["A", "B", "C", "D"]
+                    },
+                    "correct": {"type": "string", "enum": ["A", "B", "C", "D"]},
+                    "explanation": {"type": "string"}
+                },
+                "required": ["id", "question", "choices", "correct", "explanation"]
+            }
+        }
+    },
+    "required": ["questions"]
+}
+
+
 DIFFICULTY_GUIDELINES = {
     "beginner": """
 - Focus on basic comprehension and recall
@@ -100,10 +132,11 @@ IMPORTANT FOR EXPLANATIONS:
 Return ONLY valid JSON, no other text."""
 
         response = client.models.generate_content(
-            model="gemini-3.1-pro-preview",
+            model="gemini-2.5-flash",
             contents=quiz_prompt,
             config=types.GenerateContentConfig(
-                response_mime_type="application/json"
+                response_mime_type="application/json",
+                response_schema=QUIZ_SCHEMA
             )
         )
 

@@ -155,50 +155,18 @@ export default function Home() {
     setImage(null);
     setQuiz(null);
     setQuizProgress(null);
-    setStatus("Searching reliable sources...");
+    setStatus("Searching with Google and generating answer...");
 
     // Create inquiry ID upfront
     const inquiryId = `inquiry-${Date.now()}`;
     setCurrentInquiryId(inquiryId);
 
     try {
-      // 1. Search
-      const searchRes = await fetch("https://jeebus87--ace-it-backend-search.modal.run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query }),
-      });
-      const searchData = await searchRes.json();
-
-      if (searchData.error) {
-        setAnswer(`Error: ${searchData.error}`);
-        setLoading(false);
-        return;
-      }
-
-      setStatus(
-        `Found ${searchData.results?.length || 0} sources. Generating answer...`
-      );
-
-      // 2. Build context from search results
-      const context =
-        searchData.results
-          ?.map(
-            (r: {
-              is_reliable: boolean;
-              title: string;
-              snippet: string;
-              url: string;
-            }) =>
-              `[${r.is_reliable ? "VERIFIED" : ""}] ${r.title}\n${r.snippet}\nURL: ${r.url}`
-          )
-          .join("\n\n") || "";
-
-      // 3. Generate answer
+      // 1. Generate answer with Google Search grounding (single API call)
       const answerRes = await fetch("https://jeebus87--ace-it-backend-generate.modal.run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: query, context }),
+        body: JSON.stringify({ question: query }),
       });
       const answerData = await answerRes.json();
 
@@ -213,7 +181,7 @@ export default function Home() {
       setStatus("Generating visual...");
       setImageStatus("loading");
 
-      // 4. Generate image (don't let image errors block the flow)
+      // 2. Generate image (don't let image errors block the flow)
       let generatedImage: string | null = null;
       try {
         const imageRes = await fetch("https://jeebus87--ace-it-backend-image-gen.modal.run", {
@@ -247,7 +215,7 @@ export default function Home() {
         // Continue without image - don't block the rest of the flow
       }
 
-      // 5. Save to history (before quiz generation)
+      // 3. Save to history (before quiz generation)
       const newInquiry: Inquiry = {
         id: inquiryId,
         query,
@@ -259,7 +227,7 @@ export default function Home() {
       };
       setHistory((prev) => [newInquiry, ...prev]);
 
-      // 6. Handle quiz generation based on difficulty preference
+      // 4. Handle quiz generation based on difficulty preference
       if (dontAskAgain) {
         // Use saved difficulty preference
         await generateQuiz(query, generatedAnswer, difficulty, inquiryId);
