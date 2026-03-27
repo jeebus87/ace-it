@@ -33,7 +33,7 @@ Provide 10-15 concrete, accurate real-world examples that illustrate the concept
 - Be specific and verifiable (include names, dates, numbers, or measurable details)
 - Show the concept applied in different contexts (science, daily life, industry, history, etc.)
 - Be memorable and relatable to students
-- Use bullet points, one example per line
+- Use numbered list format (1. 2. 3. etc.), one example per line
 
 ## ELI5 (Explain Like I'm 5)
 Simplify without sacrificing accuracy. Use analogies that capture the essence of the concept correctly. Even this simplified version should not contain any factual errors."""
