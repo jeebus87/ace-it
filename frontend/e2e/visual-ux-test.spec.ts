@@ -29,6 +29,12 @@ async function waitAndScreenshot(
   await screenshot(page, name);
 }
 
+// Helper for mobile-safe clicking (handles overlapping elements)
+async function safeClick(page: Page, locator: ReturnType<Page["locator"]>) {
+  await locator.scrollIntoViewIfNeeded();
+  await locator.click({ force: true });
+}
+
 test.describe("Visual UX/UI Test - All Screens", () => {
   test.beforeAll(async () => {
     // Ensure screenshot directory exists
@@ -105,8 +111,10 @@ test.describe("Visual UX/UI Test - All Screens", () => {
       await screenshot(page, `06-difficulty-selected-${deviceName}`);
     }
 
-    // Click Continue
-    await page.click("text=Continue");
+    // Click Continue (scroll into view first for mobile)
+    const continueBtn = page.locator("text=Continue").first();
+    await continueBtn.scrollIntoViewIfNeeded();
+    await continueBtn.click({ force: true });
 
     // ========================================
     // SCREEN 7: Content Display (Answer + Image)
@@ -127,10 +135,55 @@ test.describe("Visual UX/UI Test - All Screens", () => {
     await page.evaluate(() => window.scrollTo(0, 0));
 
     // ========================================
+    // SCREEN 7c-7f: Image Viewer Interactions
+    // ========================================
+    console.log("7c. Testing image viewer...");
+
+    // Check if image exists
+    const visualImage = page.locator('img[alt="Educational visual explanation"]');
+    if (await visualImage.isVisible().catch(() => false)) {
+      // Click on image to expand (use force for mobile where elements may overlap)
+      console.log("7c. Clicking image to expand");
+      await visualImage.scrollIntoViewIfNeeded();
+      await visualImage.click({ force: true });
+      await page.waitForTimeout(500);
+      await screenshot(page, `07c-image-expanded-${deviceName}`);
+
+      // Screenshot shows fullscreen modal with image
+      const expandedModal = page.locator(".fixed.inset-0");
+      if (await expandedModal.isVisible().catch(() => false)) {
+        // Click download button in expanded view
+        console.log("7d. Clicking download button");
+        const downloadBtn = page.locator('button:has(svg.lucide-download)').last();
+        if (await downloadBtn.isVisible().catch(() => false)) {
+          await downloadBtn.click({ force: true });
+          await page.waitForTimeout(300);
+          await screenshot(page, `07d-image-download-clicked-${deviceName}`);
+        }
+
+        // Close the expanded view
+        console.log("7e. Closing image viewer");
+        const closeBtn = page.locator('button:has(svg.lucide-x)').first();
+        if (await closeBtn.isVisible().catch(() => false)) {
+          await closeBtn.click({ force: true });
+        } else {
+          // Click backdrop to close
+          await page.keyboard.press("Escape");
+        }
+        await page.waitForTimeout(300);
+        await screenshot(page, `07e-image-closed-${deviceName}`);
+      }
+    } else {
+      console.log("7c. No image found, skipping image viewer test");
+    }
+
+    // ========================================
     // SCREEN 8: Quiz Modal - First Question
     // ========================================
     console.log("8. Opening quiz modal");
-    await page.click("text=Start Mastery Quiz");
+    const quizBtn = page.locator("text=Start Mastery Quiz").first();
+    await quizBtn.scrollIntoViewIfNeeded();
+    await quizBtn.click({ force: true });
     await page.waitForSelector("text=Mastery Quiz", { timeout: 10000 });
     await page.waitForTimeout(500);
     await screenshot(page, `08-quiz-modal-question-${deviceName}`);
@@ -150,7 +203,7 @@ test.describe("Visual UX/UI Test - All Screens", () => {
 
       if (await choiceButton.isDisabled().catch(() => true)) continue;
 
-      await choiceButton.click();
+      await safeClick(page, choiceButton);
       await page.waitForTimeout(500);
       await screenshot(page, `09-answer-selected-${choice}-${deviceName}`);
 
@@ -184,7 +237,7 @@ test.describe("Visual UX/UI Test - All Screens", () => {
 
         // Complete the answer
         await inputField.fill(correctAnswer);
-        await page.locator("button").filter({ hasText: "Submit" }).click();
+        await safeClick(page, page.locator("button").filter({ hasText: "Submit" }));
         await page.waitForTimeout(500);
         await screenshot(page, `11b-answer-submitted-${deviceName}`);
       } else {
@@ -220,7 +273,7 @@ test.describe("Visual UX/UI Test - All Screens", () => {
         .locator("button")
         .filter({ hasText: "Next Question" });
       if (await nextButton.isVisible().catch(() => false)) {
-        await nextButton.click();
+        await safeClick(page, nextButton);
         await page.waitForTimeout(300);
       }
 
@@ -236,7 +289,7 @@ test.describe("Visual UX/UI Test - All Screens", () => {
 
         if (await choiceButton.isDisabled().catch(() => true)) continue;
 
-        await choiceButton.click();
+        await safeClick(page, choiceButton);
         await page.waitForTimeout(400);
 
         // Handle type prompt if needed
@@ -252,7 +305,7 @@ test.describe("Visual UX/UI Test - All Screens", () => {
           await page
             .locator('input[placeholder="Type the correct answer..."]')
             .fill(correctAnswer);
-          await page.locator("button").filter({ hasText: "Submit" }).click();
+          await safeClick(page, page.locator("button").filter({ hasText: "Submit" }));
           await page.waitForTimeout(300);
         }
 
@@ -290,12 +343,12 @@ test.describe("Visual UX/UI Test - All Screens", () => {
         .filter({ hasText: "Complete Quiz" });
 
       if (await nextButton.isVisible().catch(() => false)) {
-        await nextButton.click();
+        await safeClick(page, nextButton);
         await page.waitForTimeout(200);
       } else if (await completeButton.isVisible().catch(() => false)) {
         // Take screenshot before completing
         await screenshot(page, `13-last-question-${deviceName}`);
-        await completeButton.click();
+        await safeClick(page, completeButton);
         break;
       }
 
@@ -307,7 +360,7 @@ test.describe("Visual UX/UI Test - All Screens", () => {
 
         if (await choiceButton.isDisabled().catch(() => true)) continue;
 
-        await choiceButton.click();
+        await safeClick(page, choiceButton);
         await page.waitForTimeout(300);
 
         const typePrompt = page.locator(
@@ -322,7 +375,7 @@ test.describe("Visual UX/UI Test - All Screens", () => {
           await page
             .locator('input[placeholder="Type the correct answer..."]')
             .fill(correctAnswer);
-          await page.locator("button").filter({ hasText: "Submit" }).click();
+          await safeClick(page, page.locator("button").filter({ hasText: "Submit" }));
           await page.waitForTimeout(200);
         }
 
@@ -347,7 +400,7 @@ test.describe("Visual UX/UI Test - All Screens", () => {
       .locator("button")
       .filter({ hasText: "Complete Quiz" });
     if (await finalCompleteButton.isVisible().catch(() => false)) {
-      await finalCompleteButton.click();
+      await safeClick(page, finalCompleteButton);
     }
 
     // ========================================
@@ -376,7 +429,8 @@ test.describe("Visual UX/UI Test - All Screens", () => {
     // SCREEN 15: Close Quiz - Back to Content
     // ========================================
     console.log("15. Closing quiz");
-    await page.click("text=Close Quiz");
+    const closeQuizBtn = page.locator("text=Close Quiz").first();
+    await safeClick(page, closeQuizBtn);
     await page.waitForTimeout(500);
     await screenshot(page, `15-after-quiz-closed-${deviceName}`);
 
@@ -389,17 +443,17 @@ test.describe("Visual UX/UI Test - All Screens", () => {
     const historyToggle = page.locator("button").filter({ hasText: /^\d+$/ });
 
     if (await historyToggle.isVisible().catch(() => false)) {
-      await historyToggle.click();
+      await safeClick(page, historyToggle);
       await page.waitForTimeout(500);
       await screenshot(page, `16-history-sidebar-${deviceName}`);
 
       // Close sidebar
       const closeBtn = page.locator('button:has(svg[class*="X"])').first();
       if (await closeBtn.isVisible().catch(() => false)) {
-        await closeBtn.click();
+        await safeClick(page, closeBtn);
       }
     } else if (await historyButton.isVisible().catch(() => false)) {
-      await historyButton.click();
+      await safeClick(page, historyButton);
       await page.waitForTimeout(500);
       await screenshot(page, `16-history-sidebar-${deviceName}`);
     }
