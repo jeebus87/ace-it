@@ -5,6 +5,7 @@ import { X, CheckCircle, XCircle, Trophy, Crown, Flame } from "lucide-react";
 import confetti from "canvas-confetti";
 import { QuizProgress } from "./HistorySidebar";
 import { useSound } from "@/hooks/useSound";
+import { isFuzzyMatch } from "@/lib/fuzzy-match";
 
 interface Question {
   id: number;
@@ -139,34 +140,6 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
 
   const currentQuestion = quiz.questions[currentIndex];
   const correctAnswerText = currentQuestion.choices[currentQuestion.correct as keyof typeof currentQuestion.choices];
-  const normalizeText = (text: string) => text.toLowerCase().trim().replace(/[^\w\s]/g, "");
-
-  // Fuzzy match for typed answers - accepts contextually similar answers
-  const isFuzzyMatch = (typed: string, correct: string): boolean => {
-    const normalizedTyped = normalizeText(typed);
-    const normalizedCorrect = normalizeText(correct);
-
-    // Exact match
-    if (normalizedTyped === normalizedCorrect) return true;
-
-    // One contains the other (if typed is substantial enough)
-    if (normalizedCorrect.includes(normalizedTyped) && normalizedTyped.length >= Math.min(normalizedCorrect.length * 0.5, 10)) return true;
-    if (normalizedTyped.includes(normalizedCorrect)) return true;
-
-    // Word overlap check - filter out short/common words
-    const skipWords = new Set(["the", "a", "an", "is", "are", "was", "were", "of", "to", "in", "for", "on", "with", "as", "at", "by"]);
-    const typedWords = normalizedTyped.split(/\s+/).filter(w => w.length > 2 && !skipWords.has(w));
-    const correctWords = normalizedCorrect.split(/\s+/).filter(w => w.length > 2 && !skipWords.has(w));
-
-    if (correctWords.length === 0) return normalizedTyped === normalizedCorrect;
-
-    // Count matching words
-    const matchingWords = typedWords.filter(w => correctWords.some(cw => cw.includes(w) || w.includes(cw)));
-    const overlapRatio = matchingWords.length / correctWords.length;
-
-    // Accept if 70%+ of key words match
-    return overlapRatio >= 0.7;
-  };
 
   const handleAnswer = (choice: string) => {
     if (disabledChoices.has(choice) || showFeedback) return;
