@@ -30,9 +30,10 @@ interface QuizModalProps {
   onProgressChange?: (progress: QuizProgress) => void;
   onCorrectAnswer?: (isFirstTry: boolean) => number;
   onPerfectQuiz?: (questionCount: number) => number;
+  onRedoQuiz?: () => void;
 }
 
-export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChange, onCorrectAnswer, onPerfectQuiz }: QuizModalProps) {
+export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChange, onCorrectAnswer, onPerfectQuiz, onRedoQuiz }: QuizModalProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
@@ -291,7 +292,14 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
               {totalXPGained > 0 && (
                 <p className="text-sm text-green-400 font-medium mb-6">+{totalXPGained} XP earned!</p>
               )}
-              <button onClick={onClose} className="px-6 py-3 bg-[hsl(var(--primary))] text-white rounded-xl font-medium hover:opacity-90 transition-opacity">Close Quiz</button>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                {!isPerfect && onRedoQuiz && (
+                  <button onClick={onRedoQuiz} className="px-6 py-3 bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))] border border-[hsl(var(--border))] rounded-xl font-medium hover:bg-[hsl(var(--secondary))]/80 transition-opacity">
+                    Redo Quiz
+                  </button>
+                )}
+                <button onClick={onClose} className="px-6 py-3 bg-[hsl(var(--primary))] text-white rounded-xl font-medium hover:opacity-90 transition-opacity">Close Quiz</button>
+              </div>
             </div>
           ) : (
             <>

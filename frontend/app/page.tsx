@@ -257,6 +257,30 @@ export default function Home() {
     return awardPerfectBonus(questionCount, currentStreak);
   };
 
+  const handleRedoQuiz = async () => {
+    // Close the quiz modal first
+    setShowQuiz(false);
+    // Reset quiz progress
+    setQuizProgress(null);
+    // Clear current quiz to show generating state
+    setQuiz(null);
+
+    // Find the current inquiry to get the question and answer
+    const currentInquiry = history.find((item) => item.id === currentInquiryId);
+    if (currentInquiry && currentInquiry.quiz) {
+      // Regenerate quiz with same difficulty
+      const difficulty = currentInquiry.quiz.difficulty || "intermediate";
+      await generateQuiz(
+        currentInquiry.query,
+        currentInquiry.answer,
+        difficulty,
+        currentInquiryId || undefined
+      );
+      // Open the quiz modal with new quiz
+      setShowQuiz(true);
+    }
+  };
+
   const handleQuizProgressChange = (progress: QuizProgress) => {
     setQuizProgress(progress);
     // Save progress to current inquiry in history
@@ -406,6 +430,7 @@ export default function Home() {
         onProgressChange={handleQuizProgressChange}
         onCorrectAnswer={handleCorrectAnswer}
         onPerfectQuiz={handlePerfectQuiz}
+        onRedoQuiz={handleRedoQuiz}
       />
 
       {/* Footer */}
