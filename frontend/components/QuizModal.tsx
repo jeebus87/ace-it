@@ -50,17 +50,29 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
   const [totalXPGained, setTotalXPGained] = useState(0);
 
   const prevQuizTopicRef = useRef<string | null>(null);
+  const completionFiredRef = useRef(false);
   const { playCorrect, playWrong, playComplete, playCombo } = useSound();
 
   const fireConfetti = () => {
     const duration = 3000;
     const end = Date.now() + duration;
+    let frameId: number | null = null;
+
     const frame = () => {
       confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0, y: 0.8 }, colors: ["#6366f1", "#8b5cf6", "#a855f7", "#fbbf24", "#34d399"] });
       confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1, y: 0.8 }, colors: ["#6366f1", "#8b5cf6", "#a855f7", "#fbbf24", "#34d399"] });
-      if (Date.now() < end) requestAnimationFrame(frame);
+      if (Date.now() < end) {
+        frameId = requestAnimationFrame(frame);
+      }
     };
     frame();
+
+    // Return cleanup function
+    return () => {
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId);
+      }
+    };
   };
 
   const triggerCombo = (count: number) => {
@@ -76,6 +88,7 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
     const isNewQuiz = quiz?.topic !== prevQuizTopicRef.current;
     if (quiz && isNewQuiz) {
       prevQuizTopicRef.current = quiz.topic;
+      completionFiredRef.current = false; // Reset completion flag for new quiz
       if (initialProgress) {
         setCurrentIndex(initialProgress.currentIndex);
         setScore(initialProgress.score);
@@ -100,8 +113,11 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
   }, [currentIndex, score, attempts, completed, disabledChoices]);
 
   useEffect(() => {
-    if (completed && quiz) {
-      fireConfetti();
+    let confettiCleanup: (() => void) | null = null;
+
+    if (completed && quiz && !completionFiredRef.current) {
+      completionFiredRef.current = true;
+      confettiCleanup = fireConfetti();
       playComplete();
       // Award perfect quiz bonus
       const totalAttempts = Object.values(attempts).reduce((a, b) => a + b, 0);
@@ -112,7 +128,12 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
         setTimeout(() => setXPGained(null), 2500);
       }
     }
-  }, [completed, playComplete, attempts, onPerfectQuiz, quiz]);
+
+    return () => {
+      if (confettiCleanup) confettiCleanup();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [completed, quiz]);
 
   if (!open || !quiz) return null;
 
