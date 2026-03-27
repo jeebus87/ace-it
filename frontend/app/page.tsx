@@ -102,6 +102,14 @@ export default function Home() {
   ) => {
     setQuizGenerating(true);
     try {
+      // Warm up the validation endpoint in parallel (fire-and-forget)
+      // This eliminates cold start latency when user actually needs validation
+      fetch("https://jeebus87--ace-it-backend-validate-answer.modal.run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ typed: "warmup", correct: "warmup", question: "warmup" }),
+      }).catch(() => {}); // Ignore errors, this is just a warm-up
+
       const quizRes = await fetch("https://jeebus87--ace-it-backend-quiz.modal.run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
