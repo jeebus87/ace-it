@@ -267,17 +267,25 @@ export default function Home() {
 
     // Find the current inquiry to get the question and answer
     const currentInquiry = history.find((item) => item.id === currentInquiryId);
-    if (currentInquiry && currentInquiry.quiz) {
-      // Regenerate quiz with same difficulty
-      const difficulty = currentInquiry.quiz.difficulty || "intermediate";
-      await generateQuiz(
-        currentInquiry.query,
-        currentInquiry.answer,
-        difficulty,
-        currentInquiryId || undefined
-      );
-      // Open the quiz modal with new quiz
-      setShowQuiz(true);
+    if (currentInquiry) {
+      if (dontAskAgain) {
+        // Use saved difficulty preference
+        await generateQuiz(
+          currentInquiry.query,
+          currentInquiry.answer,
+          difficulty,
+          currentInquiryId || undefined
+        );
+        // Open the quiz modal with new quiz
+        setShowQuiz(true);
+      } else {
+        // Show difficulty selection prompt
+        setPendingQuizData({
+          question: currentInquiry.query,
+          answer: currentInquiry.answer,
+        });
+        setShowDifficultyPrompt(true);
+      }
     }
   };
 
