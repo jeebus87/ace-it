@@ -272,7 +272,6 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
       flex items-start sm:items-center justify-center
       sm:p-4
       bg-[hsl(var(--bg-deep))]
-      animate-crt-boot
       overflow-y-auto sm:overflow-hidden
       ${screenFlash === "correct" ? "animate-flash-green" : ""}
       ${screenFlash === "wrong" ? "animate-flash-red" : ""}
