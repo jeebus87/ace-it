@@ -12,6 +12,7 @@ const SOUNDS = {
   wrong: "/sounds/wrong.wav",
   combo: "/sounds/combo.wav",
   complete: "/sounds/complete.wav",
+  vortex: "/sounds/vortex.mp3",
 } as const;
 
 type SoundType = keyof typeof SOUNDS;
@@ -23,6 +24,7 @@ const SOUND_DEBOUNCE: Record<SoundType, number> = {
   wrong: 300,
   combo: 500,
   complete: 1000,
+  vortex: 800,
 };
 
 // Volume levels for each sound
@@ -32,6 +34,7 @@ const SOUND_VOLUMES: Record<SoundType, number> = {
   wrong: 0.4,
   combo: 0.5,
   complete: 0.6,
+  vortex: 0.6,
 };
 
 export function useSound() {
@@ -116,6 +119,7 @@ export function useSound() {
   const playWrong = useCallback(() => playSound("wrong"), [playSound]);
   const playCombo = useCallback(() => playSound("combo"), [playSound]);
   const playComplete = useCallback(() => playSound("complete"), [playSound]);
+  const playVortex = useCallback(() => playSound("vortex"), [playSound]);
 
   return {
     soundEnabled,
@@ -125,5 +129,6 @@ export function useSound() {
     playComplete,
     playCombo,
     playClick,
+    playVortex,
   };
 }

@@ -1,16 +1,28 @@
 "use client";
 
-import { useState, KeyboardEvent } from "react";
+import { useState, KeyboardEvent, useEffect } from "react";
 import { Search, Loader2, Zap } from "lucide-react";
 
 interface SearchBarProps {
   onSearch: (query: string) => void;
   loading: boolean;
+  isBeingSucked?: boolean;
+  onSuckComplete?: () => void;
 }
 
-export function SearchBar({ onSearch, loading }: SearchBarProps) {
+export function SearchBar({ onSearch, loading, isBeingSucked, onSuckComplete }: SearchBarProps) {
   const [query, setQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
+
+  // Trigger callback when suck animation ends
+  useEffect(() => {
+    if (isBeingSucked && onSuckComplete) {
+      const timer = setTimeout(() => {
+        onSuckComplete();
+      }, 800); // Match animation duration
+      return () => clearTimeout(timer);
+    }
+  }, [isBeingSucked, onSuckComplete]);
 
   const handleSubmit = () => {
     if (query.trim() && !loading) {
@@ -27,7 +39,10 @@ export function SearchBar({ onSearch, loading }: SearchBarProps) {
   };
 
   return (
-    <div className="w-full max-w-3xl mx-auto mb-8 px-4 sm:px-0">
+    <div className={`
+      w-full max-w-3xl mx-auto mb-8 px-4 sm:px-0
+      ${isBeingSucked ? 'animate-black-hole-suck' : ''}
+    `}>
       {/* Terminal header */}
       <div className="flex items-center gap-2 mb-2">
         <div className="flex gap-1.5">
@@ -52,6 +67,7 @@ export function SearchBar({ onSearch, loading }: SearchBarProps) {
             ? 'border-[hsl(var(--neon-cyan))] neon-glow-cyan'
             : 'border-[hsl(var(--border))]'
           }
+          ${isBeingSucked ? 'animate-black-hole-glow' : ''}
         `}
       >
         {/* Pixel corners */}

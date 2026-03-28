@@ -47,7 +47,7 @@ export default function Home() {
   const [quizGenerating, setQuizGenerating] = useState(false);
 
   // Sound effects
-  const { soundEnabled, toggleSound } = useSound();
+  const { soundEnabled, toggleSound, playVortex } = useSound();
 
   // Streak tracking
   const { currentStreak, isStreakAtRisk, todayCompleted, recordQuizCompletion } = useStreak();
@@ -66,6 +66,10 @@ export default function Home() {
     question: string;
     answer: string;
   } | null>(null);
+
+  // Search bar visibility state
+  const [searchBarVisible, setSearchBarVisible] = useState(true);
+  const [isBeingSucked, setIsBeingSucked] = useState(false);
 
   // History state - persisted to localStorage
   const [history, setHistory] = useState<Inquiry[]>([]);
@@ -221,6 +225,10 @@ export default function Home() {
   };
 
   const handleSearch = async (query: string) => {
+    // Trigger black hole animation and sound
+    playVortex();
+    setIsBeingSucked(true);
+
     setLoading(true);
     setAnswer("");
     setImage(null);
@@ -386,6 +394,23 @@ export default function Home() {
     setQuiz(inquiry.quiz);
     setQuizProgress(inquiry.quizProgress);
     setShowQuiz(false);
+    // Hide search bar when viewing history
+    setSearchBarVisible(false);
+    setIsBeingSucked(false);
+  };
+
+  const handleSuckComplete = () => {
+    setIsBeingSucked(false);
+    setSearchBarVisible(false);
+  };
+
+  const handleNewSearch = () => {
+    setSearchBarVisible(true);
+    setAnswer("");
+    setImage(null);
+    setQuiz(null);
+    setQuizProgress(null);
+    setCurrentInquiryId(null);
   };
 
   const handleClearHistory = () => {
@@ -471,7 +496,46 @@ export default function Home() {
       </header>
 
       {/* Search */}
-      <SearchBar onSearch={handleSearch} loading={loading} />
+      {searchBarVisible ? (
+        <SearchBar
+          onSearch={handleSearch}
+          loading={loading}
+          isBeingSucked={isBeingSucked}
+          onSuckComplete={handleSuckComplete}
+        />
+      ) : (
+        <div className="flex justify-center mb-8 px-4 sm:px-0">
+          <button
+            onClick={handleNewSearch}
+            className={`
+              relative
+              px-6 sm:px-8 py-4
+              bg-[hsl(var(--bg-surface))]
+              border-2 border-[hsl(var(--neon-magenta))]
+              text-[hsl(var(--neon-magenta))]
+              font-display text-xs sm:text-sm
+              hover:bg-[hsl(var(--neon-magenta))]
+              hover:text-[hsl(var(--bg-deep))]
+              hover:shadow-[0_0_30px_hsl(var(--neon-magenta)/0.5)]
+              transition-all duration-200
+              hover:scale-105
+              active:scale-95
+              neon-glow-magenta
+            `}
+          >
+            {/* Pixel corners */}
+            <div className="absolute -top-1 -left-1 w-3 h-3 border-t-2 border-l-2 border-[hsl(var(--neon-magenta))]" />
+            <div className="absolute -top-1 -right-1 w-3 h-3 border-t-2 border-r-2 border-[hsl(var(--neon-magenta))]" />
+            <div className="absolute -bottom-1 -left-1 w-3 h-3 border-b-2 border-l-2 border-[hsl(var(--neon-magenta))]" />
+            <div className="absolute -bottom-1 -right-1 w-3 h-3 border-b-2 border-r-2 border-[hsl(var(--neon-magenta))]" />
+
+            <span className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4" />
+              NEW SEARCH
+            </span>
+          </button>
+        </div>
+      )}
 
       {/* Status */}
       {status && (

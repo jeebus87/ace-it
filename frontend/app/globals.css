@@ -846,3 +846,63 @@ body {
     hsl(var(--bg-deep)) 10px
   );
 }
+
+/* Black Hole Suck Animation */
+@keyframes black-hole-suck {
+  0% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+    filter: blur(0px);
+  }
+  30% {
+    transform: scale(0.8) rotate(90deg);
+    opacity: 0.8;
+    filter: blur(1px);
+  }
+  60% {
+    transform: scale(0.4) rotate(270deg);
+    opacity: 0.5;
+    filter: blur(3px);
+  }
+  80% {
+    transform: scale(0.15) rotate(450deg);
+    opacity: 0.2;
+    filter: blur(6px);
+  }
+  100% {
+    transform: scale(0) rotate(720deg);
+    opacity: 0;
+    filter: blur(10px);
+  }
+}
+
+.animate-black-hole-suck {
+  animation: black-hole-suck 0.8s cubic-bezier(0.55, 0.085, 0.68, 0.53) forwards;
+  transform-origin: center center;
+}
+
+/* Black hole glow effect during animation */
+@keyframes black-hole-glow {
+  0% {
+    box-shadow: 0 0 0 0 hsla(var(--neon-magenta) / 0);
+  }
+  30% {
+    box-shadow:
+      0 0 30px 10px hsla(var(--neon-magenta) / 0.5),
+      0 0 60px 20px hsla(var(--neon-purple) / 0.3),
+      inset 0 0 20px hsla(var(--neon-cyan) / 0.2);
+  }
+  60% {
+    box-shadow:
+      0 0 50px 20px hsla(var(--neon-magenta) / 0.7),
+      0 0 100px 40px hsla(var(--neon-purple) / 0.4),
+      inset 0 0 40px hsla(var(--neon-cyan) / 0.4);
+  }
+  100% {
+    box-shadow: 0 0 0 0 hsla(var(--neon-magenta) / 0);
+  }
+}
+
+.animate-black-hole-glow {
+  animation: black-hole-glow 0.8s cubic-bezier(0.55, 0.085, 0.68, 0.53) forwards;
+}
