@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { Calendar } from "lucide-react";
 
 interface ActivityData {
   date: string;
@@ -13,27 +14,24 @@ interface ActivityHeatmapProps {
 }
 
 const getColor = (count: number): string => {
-  if (count === 0) return "bg-[hsl(var(--secondary))]";
-  if (count === 1) return "bg-green-900/50";
-  if (count === 2) return "bg-green-700/70";
-  if (count === 3) return "bg-green-500/80";
-  return "bg-green-400";
+  if (count === 0) return "bg-[hsl(var(--bg-deep))] border-[hsl(var(--border))]";
+  if (count === 1) return "bg-[hsl(var(--neon-green))]/20 border-[hsl(var(--neon-green))]/30";
+  if (count === 2) return "bg-[hsl(var(--neon-green))]/40 border-[hsl(var(--neon-green))]/50";
+  if (count === 3) return "bg-[hsl(var(--neon-green))]/60 border-[hsl(var(--neon-green))]/70";
+  return "bg-[hsl(var(--neon-green))] border-[hsl(var(--neon-green))]";
 };
 
-const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
+const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
 
-export function ActivityHeatmap({ data, title = "Activity" }: ActivityHeatmapProps) {
+export function ActivityHeatmap({ data, title = "ACTIVITY" }: ActivityHeatmapProps) {
   const { weeks, monthLabels, totalActivity } = useMemo(() => {
-    // Group data into weeks
     const weeks: ActivityData[][] = [];
     let currentWeek: ActivityData[] = [];
 
-    // Get the day of week for the first date to properly align
     const firstDate = new Date(data[0]?.date || new Date());
     const startDayOfWeek = firstDate.getDay();
 
-    // Add empty cells for alignment
     for (let i = 0; i < startDayOfWeek; i++) {
       currentWeek.push({ date: "", count: -1 });
     }
@@ -46,12 +44,10 @@ export function ActivityHeatmap({ data, title = "Activity" }: ActivityHeatmapPro
       }
     });
 
-    // Push remaining days
     if (currentWeek.length > 0) {
       weeks.push(currentWeek);
     }
 
-    // Generate month labels
     const monthLabels: { label: string; weekIndex: number }[] = [];
     let lastMonth = -1;
 
@@ -73,23 +69,38 @@ export function ActivityHeatmap({ data, title = "Activity" }: ActivityHeatmapPro
   }, [data]);
 
   return (
-    <div className="p-4 bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-xl">
+    <div className={`
+      relative
+      p-4
+      bg-[hsl(var(--bg-surface))]
+      border-2 border-[hsl(var(--neon-green))]
+    `}>
+      {/* Pixel corners */}
+      <div className="absolute -top-0.5 -left-0.5 w-3 h-3 border-t-2 border-l-2 border-[hsl(var(--neon-green))]" />
+      <div className="absolute -top-0.5 -right-0.5 w-3 h-3 border-t-2 border-r-2 border-[hsl(var(--neon-green))]" />
+      <div className="absolute -bottom-0.5 -left-0.5 w-3 h-3 border-b-2 border-l-2 border-[hsl(var(--neon-green))]" />
+      <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 border-b-2 border-r-2 border-[hsl(var(--neon-green))]" />
+
+      {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h3 className="font-semibold text-[hsl(var(--foreground))]">{title}</h3>
-        <span className="text-sm text-[hsl(var(--muted-foreground))]">
-          {totalActivity} quizzes in the last year
+        <h3 className="font-display text-sm text-[hsl(var(--neon-green))] flex items-center gap-2">
+          <Calendar className="w-4 h-4" />
+          {title}
+        </h3>
+        <span className="font-accent text-xs text-[hsl(var(--text-muted))] tracking-wider">
+          {totalActivity} QUIZZES / YEAR
         </span>
       </div>
 
       {/* Month labels */}
-      <div className="flex mb-1 ml-8">
+      <div className="flex mb-1 ml-6 overflow-hidden">
         {monthLabels.map(({ label, weekIndex }, i) => (
           <span
             key={i}
-            className="text-xs text-[hsl(var(--muted-foreground))]"
+            className="font-display text-[8px] text-[hsl(var(--text-muted))]"
             style={{
               position: "relative",
-              left: `${weekIndex * 14}px`,
+              left: `${weekIndex * 11}px`,
               marginRight: i < monthLabels.length - 1 ? "0" : "auto",
             }}
           >
@@ -98,13 +109,13 @@ export function ActivityHeatmap({ data, title = "Activity" }: ActivityHeatmapPro
         ))}
       </div>
 
-      <div className="flex gap-1">
+      <div className="flex gap-0.5">
         {/* Day labels */}
-        <div className="flex flex-col gap-1 mr-1">
+        <div className="flex flex-col gap-0.5 mr-1">
           {DAYS.map((day, i) => (
             <span
-              key={day}
-              className="text-xs text-[hsl(var(--muted-foreground))] h-3 leading-3"
+              key={`${day}-${i}`}
+              className="font-display text-[8px] text-[hsl(var(--text-muted))] h-[10px] leading-[10px] w-4 text-right"
               style={{ visibility: i % 2 === 1 ? "visible" : "hidden" }}
             >
               {day}
@@ -112,18 +123,24 @@ export function ActivityHeatmap({ data, title = "Activity" }: ActivityHeatmapPro
           ))}
         </div>
 
-        {/* Heatmap grid */}
-        <div className="flex gap-[3px] overflow-x-auto">
+        {/* Heatmap grid - Pixel art squares */}
+        <div className="flex gap-[2px] overflow-x-auto pb-2">
           {weeks.map((week, weekIndex) => (
-            <div key={weekIndex} className="flex flex-col gap-[3px]">
+            <div key={weekIndex} className="flex flex-col gap-[2px]">
               {week.map((day, dayIndex) => (
                 <div
                   key={`${weekIndex}-${dayIndex}`}
-                  className={`w-3 h-3 rounded-sm ${
-                    day.count === -1
-                      ? "bg-transparent"
+                  className={`
+                    w-[10px] h-[10px]
+                    border
+                    ${day.count === -1
+                      ? "bg-transparent border-transparent"
                       : getColor(day.count)
-                  } transition-colors hover:ring-1 hover:ring-[hsl(var(--primary))]`}
+                    }
+                    transition-all duration-200
+                    hover:scale-150 hover:z-10
+                    ${day.count > 0 ? "hover:shadow-[0_0_8px_hsl(var(--neon-green))]" : ""}
+                  `}
                   title={
                     day.date
                       ? `${day.date}: ${day.count} quiz${day.count !== 1 ? "zes" : ""}`
@@ -137,14 +154,16 @@ export function ActivityHeatmap({ data, title = "Activity" }: ActivityHeatmapPro
       </div>
 
       {/* Legend */}
-      <div className="flex items-center justify-end gap-1 mt-3">
-        <span className="text-xs text-[hsl(var(--muted-foreground))] mr-1">Less</span>
-        <div className={`w-3 h-3 rounded-sm ${getColor(0)}`} />
-        <div className={`w-3 h-3 rounded-sm ${getColor(1)}`} />
-        <div className={`w-3 h-3 rounded-sm ${getColor(2)}`} />
-        <div className={`w-3 h-3 rounded-sm ${getColor(3)}`} />
-        <div className={`w-3 h-3 rounded-sm ${getColor(4)}`} />
-        <span className="text-xs text-[hsl(var(--muted-foreground))] ml-1">More</span>
+      <div className="flex items-center justify-end gap-2 mt-3">
+        <span className="font-accent text-[10px] text-[hsl(var(--text-muted))] tracking-wider">LESS</span>
+        <div className="flex gap-[2px]">
+          <div className={`w-[10px] h-[10px] border ${getColor(0)}`} />
+          <div className={`w-[10px] h-[10px] border ${getColor(1)}`} />
+          <div className={`w-[10px] h-[10px] border ${getColor(2)}`} />
+          <div className={`w-[10px] h-[10px] border ${getColor(3)}`} />
+          <div className={`w-[10px] h-[10px] border ${getColor(4)}`} />
+        </div>
+        <span className="font-accent text-[10px] text-[hsl(var(--text-muted))] tracking-wider">MORE</span>
       </div>
     </div>
   );

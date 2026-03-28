@@ -7,7 +7,7 @@ import { ImageViewer } from "@/components/ImageViewer";
 import { QuizModal } from "@/components/QuizModal";
 import { DifficultyPrompt } from "@/components/DifficultyPrompt";
 import { HistorySidebar, Inquiry, QuizProgress } from "@/components/HistorySidebar";
-import { GraduationCap, Sparkles, ImageOff, BarChart3 } from "lucide-react";
+import { Sparkles, ImageOff, BarChart3, Zap, Target } from "lucide-react";
 import { QuizGenerating } from "@/components/QuizGenerating";
 import Link from "next/link";
 import { SoundToggle } from "@/components/SoundToggle";
@@ -345,13 +345,20 @@ export default function Home() {
       />
 
       {/* Stats Link & Controls */}
-      <div className="fixed top-4 right-4 z-40 flex items-center gap-3 sm:gap-2">
+      <div className="fixed top-4 right-4 z-40 flex items-center gap-2">
         <Link
           href="/stats"
-          className="p-3 rounded-lg hover:bg-[hsl(var(--secondary))] transition-colors"
+          className={`
+            relative
+            p-2
+            border-2 border-[hsl(var(--border))]
+            bg-[hsl(var(--bg-surface))]
+            hover:border-[hsl(var(--neon-yellow))] hover:text-[hsl(var(--neon-yellow))]
+            transition-all duration-200
+          `}
           title="View Stats"
         >
-          <BarChart3 className="w-5 h-5 text-[hsl(var(--muted-foreground))]" />
+          <BarChart3 className="w-5 h-5" />
         </Link>
         <LevelBadge
           level={level}
@@ -369,22 +376,37 @@ export default function Home() {
         <SoundToggle enabled={soundEnabled} onToggle={toggleSound} />
       </div>
 
-      {/* Header */}
-      <header className="text-center mt-24 mb-8 sm:mb-12">
-        {/* Logo - separate row on mobile */}
-        <div className="flex justify-center mb-4 sm:hidden">
-          <GraduationCap className="w-12 h-12 text-[hsl(var(--primary))]" />
+      {/* Header - Arcade style logo */}
+      <header className="text-center mt-20 sm:mt-24 mb-8 sm:mb-12">
+        {/* Pixel art logo */}
+        <div className="flex justify-center mb-4">
+          <div className={`
+            relative
+            inline-flex items-center gap-3
+            px-6 py-3
+            bg-[hsl(var(--bg-surface))]
+            border-4 border-[hsl(var(--neon-cyan))]
+            neon-glow-cyan
+          `}>
+            {/* Pixel corners */}
+            <div className="absolute -top-1 -left-1 w-4 h-4 border-t-4 border-l-4 border-[hsl(var(--neon-cyan))]" />
+            <div className="absolute -top-1 -right-1 w-4 h-4 border-t-4 border-r-4 border-[hsl(var(--neon-cyan))]" />
+            <div className="absolute -bottom-1 -left-1 w-4 h-4 border-b-4 border-l-4 border-[hsl(var(--neon-cyan))]" />
+            <div className="absolute -bottom-1 -right-1 w-4 h-4 border-b-4 border-r-4 border-[hsl(var(--neon-cyan))]" />
+
+            <Target className="w-8 h-8 sm:w-10 sm:h-10 text-[hsl(var(--neon-cyan))]" />
+            <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl text-[hsl(var(--neon-cyan))] neon-text">
+              ACE-IT
+            </h1>
+          </div>
         </div>
-        {/* Title with inline logo on desktop */}
-        <div className="flex items-center justify-center gap-3 mb-3">
-          <GraduationCap className="hidden sm:block w-10 h-10 text-[hsl(var(--primary))]" />
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-[hsl(var(--primary))] to-blue-400 bg-clip-text text-transparent">
-            Ace-It
-          </h1>
-        </div>
-        <p className="text-sm sm:text-base text-[hsl(var(--muted-foreground))] max-w-md mx-auto px-4">
-          Your AI-powered study assistant. Search any topic, get expert answers,
-          and master with quizzes.
+
+        {/* Tagline */}
+        <p className="font-accent text-xs sm:text-sm text-[hsl(var(--text-muted))] tracking-wider max-w-md mx-auto px-4">
+          AI-POWERED STUDY ASSISTANT
+        </p>
+        <p className="font-body text-sm text-[hsl(var(--text-muted))] mt-2 max-w-md mx-auto px-4">
+          Search any topic, get expert answers, and master with quizzes.
         </p>
       </header>
 
@@ -393,9 +415,18 @@ export default function Home() {
 
       {/* Status */}
       {status && (
-        <div className="flex items-center justify-center gap-2 mb-6 text-sm text-[hsl(var(--primary))]">
-          <Sparkles className="w-4 h-4 animate-pulse" />
-          <span>{status}</span>
+        <div className="flex items-center justify-center gap-2 mb-6">
+          <div className={`
+            flex items-center gap-2
+            px-4 py-2
+            bg-[hsl(var(--bg-surface))]
+            border-2 border-[hsl(var(--neon-cyan))]
+          `}>
+            <Sparkles className="w-4 h-4 text-[hsl(var(--neon-cyan))] animate-neon-pulse" />
+            <span className="font-accent text-xs text-[hsl(var(--neon-cyan))] tracking-wider">
+              {status.toUpperCase()}
+            </span>
+          </div>
         </div>
       )}
 
@@ -407,11 +438,15 @@ export default function Home() {
 
       {/* Image Status Message */}
       {imageStatus === "content-blocked" && !image && (
-        <div className="max-w-2xl mx-auto mb-6">
-          <div className="flex items-center justify-center gap-3 p-4 rounded-xl bg-[hsl(var(--secondary))] border border-[hsl(var(--border))]">
-            <ImageOff className="w-5 h-5 text-[hsl(var(--muted-foreground))]" />
-            <p className="text-sm text-[hsl(var(--muted-foreground))]">
-              Visual couldn&apos;t be generated for this topic due to content restrictions.
+        <div className="max-w-4xl mx-auto mb-6 px-4 sm:px-0">
+          <div className={`
+            flex items-center justify-center gap-3 p-4
+            bg-[hsl(var(--bg-surface))]
+            border-2 border-[hsl(var(--border))]
+          `}>
+            <ImageOff className="w-5 h-5 text-[hsl(var(--text-muted))]" />
+            <p className="font-accent text-xs text-[hsl(var(--text-muted))] tracking-wider">
+              VISUAL BLOCKED DUE TO CONTENT RESTRICTIONS
             </p>
           </div>
         </div>
@@ -420,14 +455,34 @@ export default function Home() {
       {/* Quiz Generating Indicator */}
       <QuizGenerating visible={quizGenerating} />
 
-      {/* Quiz Button */}
+      {/* Quiz Button - Arcade style */}
       {quiz && quiz.questions.length > 0 && (
-        <div className="flex justify-center mb-8">
+        <div className="flex justify-center mb-8 px-4 sm:px-0">
           <button
             onClick={() => setShowQuiz(true)}
-            className="px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-[hsl(var(--primary))] to-blue-500 text-white rounded-xl font-medium text-base sm:text-lg shadow-lg hover:shadow-xl transition-all hover:scale-105"
+            className={`
+              relative
+              px-6 sm:px-8 py-4
+              bg-[hsl(var(--neon-cyan))]
+              border-4 border-[hsl(var(--neon-cyan))]
+              text-[hsl(var(--bg-deep))]
+              font-display text-sm sm:text-base
+              hover:shadow-[0_0_40px_hsl(var(--neon-cyan)/0.5)]
+              transition-all duration-200
+              hover:scale-105
+              active:scale-95
+            `}
           >
-            Start Mastery Quiz ({quiz.questions.length} Questions)
+            {/* Pixel corners */}
+            <div className="absolute -top-1 -left-1 w-4 h-4 border-t-4 border-l-4 border-[hsl(var(--neon-cyan))]" />
+            <div className="absolute -top-1 -right-1 w-4 h-4 border-t-4 border-r-4 border-[hsl(var(--neon-cyan))]" />
+            <div className="absolute -bottom-1 -left-1 w-4 h-4 border-b-4 border-l-4 border-[hsl(var(--neon-cyan))]" />
+            <div className="absolute -bottom-1 -right-1 w-4 h-4 border-b-4 border-r-4 border-[hsl(var(--neon-cyan))]" />
+
+            <span className="flex items-center gap-2">
+              <Zap className="w-5 h-5" />
+              START QUIZ ({quiz.questions.length} QUESTIONS)
+            </span>
           </button>
         </div>
       )}
@@ -451,8 +506,10 @@ export default function Home() {
       />
 
       {/* Footer */}
-      <footer className="text-center mt-12 text-xs text-[hsl(var(--muted-foreground))]">
-        <p>Powered by Gemini AI. Sources are verified for reliability.</p>
+      <footer className="text-center mt-12 pb-20 sm:pb-8">
+        <p className="font-accent text-[10px] text-[hsl(var(--text-dim))] tracking-wider">
+          POWERED BY GEMINI AI
+        </p>
       </footer>
     </main>
   );
