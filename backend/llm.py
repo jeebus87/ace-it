@@ -132,17 +132,50 @@ def add_citations_from_grounding(text: str, sources: list, grounding_supports: l
 
 
 def add_citations_fallback(text: str, num_sources: int) -> str:
-    """Fallback: distribute citations evenly when grounding_supports unavailable."""
+    """Distribute citations with priority to Summary and Key Points sections.
+
+    Every statement in Summary and Key Points MUST have a citation.
+    Remaining sources are distributed to other sections.
+    """
     import re
 
     if num_sources == 0:
         return text
 
-    # Find sentence-ending positions
+    # Find section boundaries
+    summary_match = re.search(r'## Summary\s*\n', text)
+    keypoints_match = re.search(r'## Key Points\s*\n', text)
+    examples_match = re.search(r'## Real-World Examples\s*\n', text)
+    eli5_match = re.search(r'## ELI5', text)
+
+    # Define section ranges
+    sections = []
+    if summary_match:
+        end = keypoints_match.start() if keypoints_match else (examples_match.start() if examples_match else len(text))
+        sections.append(('summary', summary_match.end(), end))
+    if keypoints_match:
+        end = examples_match.start() if examples_match else (eli5_match.start() if eli5_match else len(text))
+        sections.append(('keypoints', keypoints_match.end(), end))
+    if examples_match:
+        end = eli5_match.start() if eli5_match else len(text)
+        sections.append(('examples', examples_match.end(), end))
+    if eli5_match:
+        sections.append(('eli5', eli5_match.end(), len(text)))
+
+    def get_section(pos):
+        for name, start, end in sections:
+            if start <= pos < end:
+                return name
+        return 'other'
+
+    # Find all sentence-ending positions
     pattern = r'([.!?])(?=\s|$|"|\*\*|\))'
     matches = list(re.finditer(pattern, text))
 
-    valid_positions = []
+    # Categorize positions by section
+    priority_positions = []  # Summary and Key Points - MUST cite
+    other_positions = []     # Examples and ELI5 - distribute remaining
+
     for match in matches:
         pos = match.end()
         start = max(0, pos - 100)
@@ -150,34 +183,63 @@ def add_citations_fallback(text: str, num_sources: int) -> str:
         lines = context.split('\n')
         current_line = lines[-1] if lines else ""
 
-        if current_line.strip().startswith('#') or len(current_line.strip()) < 20:
+        # Skip headers and very short lines
+        if current_line.strip().startswith('#') or len(current_line.strip()) < 15:
             continue
-        valid_positions.append(pos)
 
-    if not valid_positions:
+        section = get_section(pos)
+        if section in ('summary', 'keypoints'):
+            priority_positions.append(pos)
+        elif section in ('examples', 'eli5'):
+            other_positions.append(pos)
+
+    logger.info(f"[CITATION] Priority positions (Summary/Key Points): {len(priority_positions)}")
+    logger.info(f"[CITATION] Other positions (Examples/ELI5): {len(other_positions)}")
+
+    if not priority_positions and not other_positions:
         return text
 
     result = text
+    source_idx = 1
+    positions_with_citations = []
 
-    if len(valid_positions) >= num_sources:
-        step = len(valid_positions) / num_sources
-        for i in range(num_sources - 1, -1, -1):
-            idx = int(i * step)
-            pos = valid_positions[idx]
-            superscript = to_superscript(i + 1)
-            result = result[:pos] + superscript + result[pos:]
-    else:
-        sources_per_pos = num_sources / len(valid_positions)
-        source_idx = num_sources
-        for i in range(len(valid_positions) - 1, -1, -1):
-            pos = valid_positions[i]
-            start_idx = int(i * sources_per_pos) + 1
-            end_idx = source_idx
-            superscripts = ''.join(to_superscript(n) for n in range(start_idx, end_idx + 1))
-            result = result[:pos] + superscripts + result[pos:]
-            source_idx = start_idx - 1
+    # First: cite EVERY position in Summary and Key Points
+    for pos in priority_positions:
+        if source_idx <= num_sources:
+            positions_with_citations.append((pos, [source_idx]))
+            source_idx += 1
 
-    logger.info(f"[CITATION] Fallback: distributed {num_sources} citations")
+    # If we still have sources, distribute to other sections
+    remaining_sources = num_sources - source_idx + 1
+    if remaining_sources > 0 and other_positions:
+        if len(other_positions) >= remaining_sources:
+            # More positions than sources - distribute evenly
+            step = len(other_positions) / remaining_sources
+            for i in range(remaining_sources):
+                idx = int(i * step)
+                pos = other_positions[idx]
+                positions_with_citations.append((pos, [source_idx]))
+                source_idx += 1
+        else:
+            # More sources than positions - group citations
+            sources_per_pos = remaining_sources / len(other_positions)
+            for i, pos in enumerate(other_positions):
+                start_src = source_idx
+                end_src = min(num_sources, int(source_idx + sources_per_pos))
+                if i == len(other_positions) - 1:
+                    end_src = num_sources  # Last position gets all remaining
+                citations = list(range(start_src, end_src + 1))
+                positions_with_citations.append((pos, citations))
+                source_idx = end_src + 1
+
+    # Sort by position descending and insert citations
+    positions_with_citations.sort(key=lambda x: x[0], reverse=True)
+    for pos, citation_nums in positions_with_citations:
+        superscripts = ''.join(to_superscript(n) for n in citation_nums)
+        result = result[:pos] + superscripts + result[pos:]
+
+    cited_count = sum(len(nums) for _, nums in positions_with_citations)
+    logger.info(f"[CITATION] Inserted {len(positions_with_citations)} markers for {cited_count} sources")
     return result
 
 
