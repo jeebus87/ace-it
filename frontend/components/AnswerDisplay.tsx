@@ -1,7 +1,101 @@
 "use client";
 
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { Components } from "react-markdown";
 import { Terminal, Database, Cpu } from "lucide-react";
+
+// Custom components for ReactMarkdown with arcade styling
+const markdownComponents: Components = {
+  h1: ({ children }) => (
+    <h1 className="font-display font-bold text-xl sm:text-2xl text-[hsl(var(--neon-cyan))] tracking-wider mt-8 mb-4 pb-2 border-b-2 border-[hsl(var(--neon-cyan))]">
+      {children}
+    </h1>
+  ),
+  h2: ({ children }) => (
+    <h2 className="font-display font-bold text-lg sm:text-xl text-[hsl(var(--neon-cyan))] tracking-wider mt-8 mb-4 pb-2 border-b border-[hsl(var(--neon-cyan))]/50">
+      {children}
+    </h2>
+  ),
+  h3: ({ children }) => (
+    <h3 className="font-display font-bold text-base sm:text-lg text-[hsl(var(--neon-magenta))] tracking-wider mt-6 mb-3">
+      {children}
+    </h3>
+  ),
+  h4: ({ children }) => (
+    <h4 className="font-display font-bold text-sm sm:text-base text-[hsl(var(--neon-yellow))] tracking-wider mt-4 mb-2">
+      {children}
+    </h4>
+  ),
+  p: ({ children }) => (
+    <p className="font-body text-base text-[hsl(var(--text-primary))] leading-relaxed mb-4">
+      {children}
+    </p>
+  ),
+  strong: ({ children }) => (
+    <strong className="font-bold text-[hsl(var(--neon-yellow))]">{children}</strong>
+  ),
+  em: ({ children }) => (
+    <em className="text-[hsl(var(--neon-magenta))]">{children}</em>
+  ),
+  ul: ({ children }) => (
+    <ul className="list-none pl-0 my-4 space-y-2">{children}</ul>
+  ),
+  ol: ({ children }) => (
+    <ol className="list-none pl-0 my-4 space-y-2">{children}</ol>
+  ),
+  li: ({ children }) => (
+    <li className="relative pl-6 text-[hsl(var(--text-primary))]">
+      <span className="absolute left-0 text-[hsl(var(--neon-green))]">▸</span>
+      {children}
+    </li>
+  ),
+  code: ({ children, className }) => {
+    const isBlock = className?.includes("language-");
+    if (isBlock) {
+      return (
+        <code className="block font-body text-sm text-[hsl(var(--neon-magenta))]">
+          {children}
+        </code>
+      );
+    }
+    return (
+      <code className="font-body text-sm text-[hsl(var(--neon-magenta))] bg-[hsl(var(--bg-deep))] px-2 py-1 border border-[hsl(var(--border))]">
+        {children}
+      </code>
+    );
+  },
+  pre: ({ children }) => (
+    <pre className="bg-[hsl(var(--bg-deep))] border-2 border-[hsl(var(--neon-magenta))] p-4 overflow-x-auto my-4">
+      {children}
+    </pre>
+  ),
+  a: ({ children, href }) => (
+    <a
+      href={href}
+      className="text-[hsl(var(--neon-cyan))] underline decoration-[hsl(var(--neon-cyan))]/50 hover:decoration-[hsl(var(--neon-cyan))]"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      {children}
+    </a>
+  ),
+  blockquote: ({ children }) => (
+    <blockquote className="border-l-4 border-[hsl(var(--neon-cyan))] bg-[hsl(var(--bg-deep))] pl-4 py-2 my-4 italic text-[hsl(var(--text-muted))]">
+      {children}
+    </blockquote>
+  ),
+  hr: () => <hr className="border-[hsl(var(--border))] my-6" />,
+  table: ({ children }) => (
+    <table className="border border-[hsl(var(--border))] w-full my-4">{children}</table>
+  ),
+  th: ({ children }) => (
+    <th className="bg-[hsl(var(--bg-deep))] text-[hsl(var(--neon-cyan))] font-display text-xs p-3 text-left border border-[hsl(var(--border))]">
+      {children}
+    </th>
+  ),
+  td: ({ children }) => (
+    <td className="border border-[hsl(var(--border))] p-3 text-sm">{children}</td>
+  ),
+};
 
 interface AnswerDisplayProps {
   content: string;
@@ -99,31 +193,9 @@ export function AnswerDisplay({ content, loading }: AnswerDisplayProps) {
                 <span>OUTPUT_RESULT</span>
               </div>
 
-              {/* Markdown content with terminal styling */}
-              <div className="
-                prose prose-invert max-w-none
-                prose-headings:font-display prose-headings:font-bold prose-headings:text-[hsl(var(--neon-cyan))] prose-headings:tracking-wider
-                prose-h1:text-xl prose-h1:sm:text-2xl prose-h1:mt-8 prose-h1:mb-4 prose-h1:pb-2 prose-h1:border-b-2 prose-h1:border-[hsl(var(--neon-cyan))]
-                prose-h2:text-lg prose-h2:sm:text-xl prose-h2:mt-8 prose-h2:mb-4 prose-h2:pb-2 prose-h2:border-b prose-h2:border-[hsl(var(--neon-cyan))]/50
-                prose-h3:text-base prose-h3:sm:text-lg prose-h3:mt-6 prose-h3:mb-3 prose-h3:text-[hsl(var(--neon-magenta))]
-                prose-h4:text-sm prose-h4:sm:text-base prose-h4:mt-4 prose-h4:mb-2 prose-h4:text-[hsl(var(--neon-yellow))]
-                prose-p:font-body prose-p:text-[hsl(var(--text-primary))] prose-p:text-base prose-p:leading-relaxed prose-p:mb-4
-                prose-strong:text-[hsl(var(--neon-yellow))] prose-strong:font-bold
-                prose-em:text-[hsl(var(--neon-magenta))]
-                prose-code:font-body prose-code:text-[hsl(var(--neon-magenta))] prose-code:bg-[hsl(var(--bg-deep))] prose-code:px-2 prose-code:py-1 prose-code:border prose-code:border-[hsl(var(--border))] prose-code:text-sm
-                prose-pre:bg-[hsl(var(--bg-deep))] prose-pre:border-2 prose-pre:border-[hsl(var(--neon-magenta))] prose-pre:p-4 prose-pre:overflow-x-auto
-                prose-a:text-[hsl(var(--neon-cyan))] prose-a:underline prose-a:decoration-[hsl(var(--neon-cyan))/50] hover:prose-a:decoration-[hsl(var(--neon-cyan))]
-                prose-ul:list-none prose-ul:pl-0 prose-ul:my-4
-                prose-li:relative prose-li:pl-6 prose-li:text-[hsl(var(--text-primary))] prose-li:mb-2
-                prose-li:before:content-['▸'] prose-li:before:absolute prose-li:before:left-0 prose-li:before:text-[hsl(var(--neon-green))]
-                prose-ol:list-none prose-ol:pl-0 prose-ol:counter-reset-[item] prose-ol:my-4
-                prose-blockquote:border-l-4 prose-blockquote:border-[hsl(var(--neon-cyan))] prose-blockquote:bg-[hsl(var(--bg-deep))] prose-blockquote:pl-4 prose-blockquote:py-2 prose-blockquote:italic prose-blockquote:text-[hsl(var(--text-muted))] prose-blockquote:my-4
-                prose-hr:border-[hsl(var(--border))] prose-hr:my-6
-                prose-table:border prose-table:border-[hsl(var(--border))]
-                prose-th:bg-[hsl(var(--bg-deep))] prose-th:text-[hsl(var(--neon-cyan))] prose-th:font-display prose-th:text-xs prose-th:p-3
-                prose-td:border prose-td:border-[hsl(var(--border))] prose-td:p-3 prose-td:text-sm
-              ">
-                <ReactMarkdown>{content}</ReactMarkdown>
+              {/* Markdown content with arcade styling */}
+              <div className="max-w-none">
+                <ReactMarkdown components={markdownComponents}>{content}</ReactMarkdown>
               </div>
 
               {/* End marker */}
