@@ -9,6 +9,7 @@ const SOUND_ENABLED_KEY = "ace-it-sound-enabled";
 const SOUNDS = {
   click: "/sounds/click.wav",
   correct: "/sounds/correct.wav",
+  typedCorrect: "/sounds/typed-correct.wav",
   wrong: "/sounds/wrong.wav",
   combo: "/sounds/combo.wav",
   complete: "/sounds/complete.wav",
@@ -22,6 +23,7 @@ type SoundType = keyof typeof SOUNDS;
 const SOUND_DEBOUNCE: Record<SoundType, number> = {
   click: 50,
   correct: 300,
+  typedCorrect: 300,
   wrong: 300,
   combo: 500,
   complete: 1000,
@@ -33,6 +35,7 @@ const SOUND_DEBOUNCE: Record<SoundType, number> = {
 const SOUND_VOLUMES: Record<SoundType, number> = {
   click: 0.3,
   correct: 0.5,
+  typedCorrect: 0.5,
   wrong: 0.4,
   combo: 0.5,
   complete: 0.6,
@@ -119,6 +122,7 @@ export function useSound() {
   // Individual sound functions
   const playClick = useCallback(() => playSound("click"), [playSound]);
   const playCorrect = useCallback(() => playSound("correct"), [playSound]);
+  const playTypedCorrect = useCallback(() => playSound("typedCorrect"), [playSound]);
   const playWrong = useCallback(() => playSound("wrong"), [playSound]);
   const playCombo = useCallback(() => playSound("combo"), [playSound]);
   const playComplete = useCallback(() => playSound("complete"), [playSound]);
@@ -138,6 +142,7 @@ export function useSound() {
     soundEnabled,
     toggleSound,
     playCorrect,
+    playTypedCorrect,
     playWrong,
     playComplete,
     playCombo,

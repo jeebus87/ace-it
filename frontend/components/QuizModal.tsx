@@ -66,7 +66,7 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
   const completionFiredRef = useRef(false);
   const rockyPlayedRef = useRef(false);
   const modalContentRef = useRef<HTMLDivElement>(null);
-  const { playCorrect, playWrong, playComplete, playCombo, playRocky, stopRocky } = useSound();
+  const { playCorrect, playTypedCorrect, playWrong, playComplete, playCombo, playRocky, stopRocky } = useSound();
 
   const fireConfetti = () => {
     const duration = 3000;
@@ -241,12 +241,12 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
 
       if (data.is_correct) {
         setTypedCorrect(true);
-        playCorrect();
+        playTypedCorrect();
         triggerScreenFlash("correct");
       } else {
         if (isFuzzyMatch(typedAnswer, correctAnswerText)) {
           setTypedCorrect(true);
-          playCorrect();
+          playTypedCorrect();
           triggerScreenFlash("correct");
         } else {
           playWrong();
@@ -256,7 +256,7 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
     } catch {
       if (isFuzzyMatch(typedAnswer, correctAnswerText)) {
         setTypedCorrect(true);
-        playCorrect();
+        playTypedCorrect();
         triggerScreenFlash("correct");
       } else {
         playWrong();
