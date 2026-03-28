@@ -65,8 +65,9 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
   const prevQuizIdRef = useRef<string | null>(null);
   const completionFiredRef = useRef(false);
   const rockyPlayedRef = useRef(false);
+  const applausePlayedRef = useRef(false);
   const modalContentRef = useRef<HTMLDivElement>(null);
-  const { playCorrect, playTypedCorrect, playWrong, playComplete, playCombo, playRocky, stopRocky } = useSound();
+  const { playCorrect, playTypedCorrect, playWrong, playComplete, playCombo, playRocky, stopRocky, playApplause, stopApplause } = useSound();
 
   const fireConfetti = () => {
     const duration = 3000;
@@ -110,6 +111,7 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
       prevQuizIdRef.current = quizKey || null;
       completionFiredRef.current = false;
       rockyPlayedRef.current = false;
+      applausePlayedRef.current = false;
       if (initialProgress) {
         setCurrentIndex(initialProgress.currentIndex);
         setScore(initialProgress.score);
@@ -152,6 +154,12 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
           setXPGained(bonus);
           setTimeout(() => setXPGained(null), 2500);
         }
+      } else {
+        // Play applause for non-perfect completion (only once per quiz)
+        if (!applausePlayedRef.current) {
+          applausePlayedRef.current = true;
+          playApplause();
+        }
       }
     }
 
@@ -177,9 +185,10 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
     setPortalRoot(document.getElementById("modal-root"));
   }, []);
 
-  // Wrapper to stop Rocky theme when closing
+  // Wrapper to stop completion sounds when closing
   const handleClose = () => {
     stopRocky();
+    stopApplause();
     onClose();
   };
 
