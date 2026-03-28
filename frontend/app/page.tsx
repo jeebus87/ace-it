@@ -67,9 +67,9 @@ export default function Home() {
     answer: string;
   } | null>(null);
 
-  // Search bar visibility state
-  const [searchBarVisible, setSearchBarVisible] = useState(true);
+  // Search bar animation state
   const [isBeingSucked, setIsBeingSucked] = useState(false);
+  const [searchBarGone, setSearchBarGone] = useState(false);
 
   // History state - persisted to localStorage
   const [history, setHistory] = useState<Inquiry[]>([]);
@@ -394,14 +394,14 @@ export default function Home() {
     setQuiz(inquiry.quiz);
     setQuizProgress(inquiry.quizProgress);
     setShowQuiz(false);
-    // Hide search bar when viewing history
-    setSearchBarVisible(false);
+    // Search bar stays gone when viewing history
+    setSearchBarGone(true);
     setIsBeingSucked(false);
   };
 
   const handleSuckComplete = () => {
     setIsBeingSucked(false);
-    setSearchBarVisible(false);
+    setSearchBarGone(true);
   };
 
   const handleNewSearch = () => {
@@ -491,15 +491,18 @@ export default function Home() {
         </p>
       </header>
 
-      {/* Search */}
-      {searchBarVisible ? (
+      {/* Search - only show on fresh page before any search */}
+      {!searchBarGone && !answer && (
         <SearchBar
           onSearch={handleSearch}
           loading={loading}
           isBeingSucked={isBeingSucked}
           onSuckComplete={handleSuckComplete}
         />
-      ) : (
+      )}
+
+      {/* New Search button - show when search bar is gone or we have content */}
+      {(searchBarGone || answer) && (
         <div className="flex justify-center mb-8 px-4 sm:px-0">
           <button
             onClick={handleNewSearch}
