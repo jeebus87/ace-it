@@ -63,6 +63,7 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
   const [screenFlash, setScreenFlash] = useState<"correct" | "wrong" | null>(null);
 
   const prevQuizIdRef = useRef<string | null>(null);
+  const quizInitializedRef = useRef(false);
   const completionFiredRef = useRef(false);
   const rockyPlayedRef = useRef(false);
   const applausePlayedRef = useRef(false);
@@ -108,6 +109,8 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
     const quizKey = quiz?.quizId || quiz?.topic;
     const isNewQuiz = quizKey !== prevQuizIdRef.current;
     if (quiz && isNewQuiz) {
+      // Mark as not initialized until we finish setup
+      quizInitializedRef.current = false;
       prevQuizIdRef.current = quizKey || null;
       if (initialProgress) {
         setCurrentIndex(initialProgress.currentIndex);
@@ -134,6 +137,8 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
         applausePlayedRef.current = false;
       }
       setSelectedAnswer(null); setShowFeedback(false); setTypedAnswer(""); setTypedCorrect(false); setCombo(0);
+      // Mark as initialized after setup is complete
+      quizInitializedRef.current = true;
     }
   }, [quiz?.quizId, quiz?.topic, initialProgress]);
 
@@ -148,7 +153,8 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
   useEffect(() => {
     let confettiCleanup: (() => void) | null = null;
 
-    if (completed && quiz && !completionFiredRef.current) {
+    // Only fire completion if quiz has been initialized (prevents race condition on load)
+    if (completed && quiz && !completionFiredRef.current && quizInitializedRef.current) {
       completionFiredRef.current = true;
       confettiCleanup = fireConfetti();
       playComplete();
