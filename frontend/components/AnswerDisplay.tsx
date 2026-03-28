@@ -102,19 +102,23 @@ export function AnswerDisplay({ content, loading }: AnswerDisplayProps) {
               {/* Markdown content with terminal styling */}
               <div className="
                 prose prose-invert max-w-none
-                prose-headings:font-display prose-headings:text-[hsl(var(--neon-cyan))] prose-headings:neon-text prose-headings:text-sm prose-headings:tracking-wider prose-headings:mt-6 prose-headings:mb-3
+                prose-headings:font-display prose-headings:font-bold prose-headings:text-[hsl(var(--neon-cyan))] prose-headings:tracking-wider
+                prose-h1:text-xl prose-h1:sm:text-2xl prose-h1:mt-8 prose-h1:mb-4 prose-h1:pb-2 prose-h1:border-b-2 prose-h1:border-[hsl(var(--neon-cyan))]
+                prose-h2:text-lg prose-h2:sm:text-xl prose-h2:mt-8 prose-h2:mb-4 prose-h2:pb-2 prose-h2:border-b prose-h2:border-[hsl(var(--neon-cyan))]/50
+                prose-h3:text-base prose-h3:sm:text-lg prose-h3:mt-6 prose-h3:mb-3 prose-h3:text-[hsl(var(--neon-magenta))]
+                prose-h4:text-sm prose-h4:sm:text-base prose-h4:mt-4 prose-h4:mb-2 prose-h4:text-[hsl(var(--neon-yellow))]
                 prose-p:font-body prose-p:text-[hsl(var(--text-primary))] prose-p:text-base prose-p:leading-relaxed prose-p:mb-4
-                prose-strong:text-[hsl(var(--neon-yellow))] prose-strong:font-display prose-strong:text-sm
+                prose-strong:text-[hsl(var(--neon-yellow))] prose-strong:font-bold
                 prose-em:text-[hsl(var(--neon-magenta))]
                 prose-code:font-body prose-code:text-[hsl(var(--neon-magenta))] prose-code:bg-[hsl(var(--bg-deep))] prose-code:px-2 prose-code:py-1 prose-code:border prose-code:border-[hsl(var(--border))] prose-code:text-sm
                 prose-pre:bg-[hsl(var(--bg-deep))] prose-pre:border-2 prose-pre:border-[hsl(var(--neon-magenta))] prose-pre:p-4 prose-pre:overflow-x-auto
                 prose-a:text-[hsl(var(--neon-cyan))] prose-a:underline prose-a:decoration-[hsl(var(--neon-cyan))/50] hover:prose-a:decoration-[hsl(var(--neon-cyan))]
-                prose-ul:list-none prose-ul:pl-0
+                prose-ul:list-none prose-ul:pl-0 prose-ul:my-4
                 prose-li:relative prose-li:pl-6 prose-li:text-[hsl(var(--text-primary))] prose-li:mb-2
                 prose-li:before:content-['▸'] prose-li:before:absolute prose-li:before:left-0 prose-li:before:text-[hsl(var(--neon-green))]
-                prose-ol:list-none prose-ol:pl-0 prose-ol:counter-reset-[item]
-                prose-blockquote:border-l-4 prose-blockquote:border-[hsl(var(--neon-cyan))] prose-blockquote:bg-[hsl(var(--bg-deep))] prose-blockquote:pl-4 prose-blockquote:py-2 prose-blockquote:italic prose-blockquote:text-[hsl(var(--text-muted))]
-                prose-hr:border-[hsl(var(--border))]
+                prose-ol:list-none prose-ol:pl-0 prose-ol:counter-reset-[item] prose-ol:my-4
+                prose-blockquote:border-l-4 prose-blockquote:border-[hsl(var(--neon-cyan))] prose-blockquote:bg-[hsl(var(--bg-deep))] prose-blockquote:pl-4 prose-blockquote:py-2 prose-blockquote:italic prose-blockquote:text-[hsl(var(--text-muted))] prose-blockquote:my-4
+                prose-hr:border-[hsl(var(--border))] prose-hr:my-6
                 prose-table:border prose-table:border-[hsl(var(--border))]
                 prose-th:bg-[hsl(var(--bg-deep))] prose-th:text-[hsl(var(--neon-cyan))] prose-th:font-display prose-th:text-xs prose-th:p-3
                 prose-td:border prose-td:border-[hsl(var(--border))] prose-td:p-3 prose-td:text-sm
