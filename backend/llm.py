@@ -18,72 +18,167 @@ def to_superscript(n: int) -> str:
     return ''.join(SUPERSCRIPTS[int(d)] for d in str(n))
 
 
-def add_citations_to_text(text: str, sources: list) -> tuple[str, list]:
-    """Add citations by inserting superscripts after sentences in order.
+def add_citations_from_grounding(text: str, sources: list, grounding_supports: list) -> str:
+    """Add citations using Gemini's grounding_supports for accurate source mapping.
+
+    Args:
+        text: The response text
+        sources: List of source dicts with title/url
+        grounding_supports: List of grounding support objects from Gemini API
 
     Returns:
-        Tuple of (modified_text, cited_sources) where cited_sources only
-        contains sources that were actually referenced in the text.
+        Text with accurate inline citations based on grounding metadata.
     """
-    if not sources or len(sources) == 0:
-        logger.info("[CITATION] No sources to cite")
-        return text, []
-
     import re
 
-    max_citations = min(len(sources), 9)
+    if not grounding_supports:
+        logger.info("[CITATION] No grounding_supports available")
+        return text
 
-    # Find all citation positions in the full text first
-    # Pattern: sentence ending punctuation followed by space, end, quotes, or markdown
+    # Build list of (end_position, [source_indices]) from grounding_supports
+    citations_to_insert = []
+
+    for support in grounding_supports:
+        if not hasattr(support, 'segment') or not support.segment:
+            continue
+        if not hasattr(support, 'grounding_chunk_indices'):
+            continue
+
+        segment = support.segment
+        end_idx = getattr(segment, 'end_index', None)
+        if end_idx is None:
+            continue
+
+        chunk_indices = list(support.grounding_chunk_indices)
+        if chunk_indices:
+            citation_nums = [i + 1 for i in chunk_indices if i < len(sources)]
+            if citation_nums:
+                citations_to_insert.append((int(end_idx), citation_nums))
+
+    if not citations_to_insert:
+        logger.info("[CITATION] No valid citation positions from grounding")
+        return text
+
+    # Sort by position
+    citations_to_insert.sort(key=lambda x: x[0])
+
+    # Merge citations at same or very close positions
+    merged = []
+    for pos, nums in citations_to_insert:
+        if merged and abs(merged[-1][0] - pos) < 10:
+            existing_nums = set(merged[-1][1])
+            existing_nums.update(nums)
+            merged[-1] = (max(merged[-1][0], pos), sorted(existing_nums))
+        else:
+            merged.append((pos, nums))
+
+    # Find safe insertion points (after punctuation or at word boundaries)
+    # For each citation position, find the nearest safe spot
+    safe_positions = []
+    for raw_pos, citation_nums in merged:
+        # Clamp to text length
+        pos = min(raw_pos, len(text))
+
+        # Look for nearest sentence end or word boundary within ~50 chars
+        search_start = max(0, pos - 30)
+        search_end = min(len(text), pos + 30)
+        search_region = text[search_start:search_end]
+
+        # Find punctuation positions relative to our target
+        best_pos = pos
+        best_dist = float('inf')
+
+        # Look for sentence-ending punctuation
+        for match in re.finditer(r'[.!?](?=\s|$|"|\'|\*)', search_region):
+            abs_pos = search_start + match.end()
+            dist = abs(abs_pos - pos)
+            if dist < best_dist:
+                best_dist = dist
+                best_pos = abs_pos
+
+        # If no punctuation found nearby, look for word boundary
+        if best_dist > 20:
+            for match in re.finditer(r'\s', search_region):
+                abs_pos = search_start + match.start()
+                dist = abs(abs_pos - pos)
+                if dist < best_dist:
+                    best_dist = dist
+                    best_pos = abs_pos
+
+        safe_positions.append((best_pos, citation_nums))
+
+    # Dedupe positions that ended up at same spot
+    final_positions = {}
+    for pos, nums in safe_positions:
+        if pos in final_positions:
+            final_positions[pos] = sorted(set(final_positions[pos]) | set(nums))
+        else:
+            final_positions[pos] = nums
+
+    # Insert citations in reverse order to preserve positions
+    result = text
+    for pos in sorted(final_positions.keys(), reverse=True):
+        citation_nums = final_positions[pos]
+        superscripts = ''.join(to_superscript(n) for n in citation_nums)
+        result = result[:pos] + superscripts + result[pos:]
+
+    cited_indices = set()
+    for nums in final_positions.values():
+        cited_indices.update(nums)
+
+    logger.info(f"[CITATION] Inserted {len(final_positions)} citation markers for {len(cited_indices)} unique sources")
+
+    return result
+
+
+def add_citations_fallback(text: str, num_sources: int) -> str:
+    """Fallback: distribute citations evenly when grounding_supports unavailable."""
+    import re
+
+    if num_sources == 0:
+        return text
+
+    # Find sentence-ending positions
     pattern = r'([.!?])(?=\s|$|"|\*\*|\))'
-
-    # Find positions in sections we want to cite (Summary and Key Points mainly)
     matches = list(re.finditer(pattern, text))
 
-    # Filter to substantive positions (not in headers, not too short context)
     valid_positions = []
     for match in matches:
         pos = match.end()
-        # Check context - skip if near a header
         start = max(0, pos - 100)
         context = text[start:pos]
+        lines = context.split('\n')
+        current_line = lines[-1] if lines else ""
 
-        # Skip if this is in a header line or Real-World Examples section
-        lines_before = context.split('\n')
-        current_line = lines_before[-1] if lines_before else ""
-
-        # Skip headers, short lines, and example sections
-        if current_line.strip().startswith('#'):
+        if current_line.strip().startswith('#') or len(current_line.strip()) < 20:
             continue
-        if len(current_line.strip()) < 25:
-            continue
-        if '## Real-World' in context or '## ELI5' in context:
-            continue
-
         valid_positions.append(pos)
 
-    # Limit to max citations, spread across the content
-    if len(valid_positions) > max_citations:
-        # Take evenly spaced positions
-        step = len(valid_positions) // max_citations
-        valid_positions = valid_positions[::step][:max_citations]
+    if not valid_positions:
+        return text
 
-    # Insert citations in reverse order to preserve positions, but number in forward order
     result = text
-    cited_sources = []
 
-    for i, pos in enumerate(reversed(valid_positions)):
-        citation_num = len(valid_positions) - i  # Forward numbering
-        superscript = to_superscript(citation_num)
-        result = result[:pos] + superscript + result[pos:]
+    if len(valid_positions) >= num_sources:
+        step = len(valid_positions) / num_sources
+        for i in range(num_sources - 1, -1, -1):
+            idx = int(i * step)
+            pos = valid_positions[idx]
+            superscript = to_superscript(i + 1)
+            result = result[:pos] + superscript + result[pos:]
+    else:
+        sources_per_pos = num_sources / len(valid_positions)
+        source_idx = num_sources
+        for i in range(len(valid_positions) - 1, -1, -1):
+            pos = valid_positions[i]
+            start_idx = int(i * sources_per_pos) + 1
+            end_idx = source_idx
+            superscripts = ''.join(to_superscript(n) for n in range(start_idx, end_idx + 1))
+            result = result[:pos] + superscripts + result[pos:]
+            source_idx = start_idx - 1
 
-    # Collect the sources that were cited (in order)
-    for i in range(min(len(valid_positions), len(sources))):
-        cited_sources.append(sources[i])
-
-    logger.info(f"[CITATION] Inserted {len(valid_positions)} citations")
-
-    return result, cited_sources
+    logger.info(f"[CITATION] Fallback: distributed {num_sources} citations")
+    return result
 
 
 SYSTEM_PROMPT = """You are an expert-level study tutor with deep domain knowledge. Your explanations must be so precise and accurate that even a subject matter expert would agree with every detail.
@@ -164,6 +259,8 @@ def generate_answer(question: str, context: str = "") -> dict:
 
         logger.info(f"Response has candidates: {hasattr(response, 'candidates') and bool(response.candidates)}")
 
+        grounding_supports = []
+
         if hasattr(response, 'candidates') and response.candidates:
             candidate = response.candidates[0]
             has_metadata = hasattr(candidate, 'grounding_metadata') and candidate.grounding_metadata
@@ -171,27 +268,28 @@ def generate_answer(question: str, context: str = "") -> dict:
 
             if has_metadata:
                 metadata = candidate.grounding_metadata
-                has_chunks = hasattr(metadata, 'grounding_chunks') and metadata.grounding_chunks
-                logger.info(f"Metadata has grounding_chunks: {has_chunks}")
 
-                # Extract unique sources from grounding chunks
-                chunks = []
-                if has_chunks:
-                    chunks = metadata.grounding_chunks
-                    logger.info(f"Found {len(chunks)} grounding chunks")
-                    for chunk in chunks:
+                # Extract grounding_supports for accurate citation placement
+                if hasattr(metadata, 'grounding_supports') and metadata.grounding_supports:
+                    grounding_supports = list(metadata.grounding_supports)
+                    logger.info(f"Found {len(grounding_supports)} grounding_supports")
+
+                # Extract sources from grounding chunks
+                if hasattr(metadata, 'grounding_chunks') and metadata.grounding_chunks:
+                    for chunk in metadata.grounding_chunks:
                         if hasattr(chunk, 'web') and chunk.web:
                             sources.append({
                                 "title": chunk.web.title if hasattr(chunk.web, 'title') else "",
                                 "url": chunk.web.uri if hasattr(chunk.web, 'uri') else ""
                             })
-                            logger.info(f"Added source: {sources[-1]['title'][:50] if sources[-1]['title'] else 'No title'}")
 
                 logger.info(f"Extracted {len(sources)} sources total")
 
-        # Post-process to add inline citations
+        # Add inline citations - distribute evenly at sentence boundaries
+        # Note: grounding_supports positions are often unreliable, so we use
+        # the fallback approach which places citations at proper sentence ends
         if sources:
-            text, sources = add_citations_to_text(text, sources)
+            text = add_citations_fallback(text, len(sources))
 
         return {
             "answer": text,
