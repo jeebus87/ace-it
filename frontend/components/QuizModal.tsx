@@ -150,6 +150,16 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [completed, quiz]);
 
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = "";
+      };
+    }
+  }, [open]);
+
   if (!open || !quiz) return null;
 
   const currentQuestion = quiz.questions[currentIndex];
@@ -242,16 +252,6 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
   const totalAttempts = Object.values(attempts).reduce((a, b) => a + b, 0);
   const isPerfect = score === quiz.questions.length && quiz.questions.every((_, i) => attempts[i] === 1);
   const progressPercent = ((currentIndex + 1) / quiz.questions.length) * 100;
-
-  // Lock body scroll when modal is open
-  useEffect(() => {
-    if (open) {
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.body.style.overflow = "";
-      };
-    }
-  }, [open]);
 
   return (
     <div className={`
