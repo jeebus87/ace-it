@@ -243,11 +243,22 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
   const isPerfect = score === quiz.questions.length && quiz.questions.every((_, i) => attempts[i] === 1);
   const progressPercent = ((currentIndex + 1) / quiz.questions.length) * 100;
 
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = "";
+      };
+    }
+  }, [open]);
+
   return (
     <div className={`
       fixed inset-0 z-50 flex items-center justify-center
-      bg-[hsl(var(--bg-deep))]/98 p-4 overflow-y-auto
+      bg-[hsl(var(--bg-deep))]
       animate-crt-boot
+      overflow-hidden
       ${screenFlash === "correct" ? "animate-flash-green" : ""}
       ${screenFlash === "wrong" ? "animate-flash-red" : ""}
     `}>
@@ -286,16 +297,17 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
         </div>
       )}
 
-      {/* Main modal - Arcade cabinet style */}
+      {/* Main modal - Arcade cabinet style - fullscreen on mobile */}
       <div
         ref={modalContentRef}
         className={`
           relative
-          w-full max-w-2xl
+          w-full h-full sm:h-auto sm:max-h-[90vh]
+          sm:max-w-2xl
           bg-[hsl(var(--bg-surface))]
-          border-4 ${diffStyle.border}
+          border-0 sm:border-4 ${diffStyle.border}
           ${diffStyle.glow}
-          max-h-[90vh] overflow-y-auto
+          overflow-y-auto overscroll-contain
           pb-20 sm:pb-0
         `}
       >
@@ -485,6 +497,9 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
                     border-2 transition-all duration-200
                     flex items-start gap-4
                     min-h-[64px]
+                    select-none
+                    [-webkit-tap-highlight-color:transparent]
+                    active:scale-[0.98] active:opacity-100
                   `;
 
                   if (showFeedback && isSelected) {
