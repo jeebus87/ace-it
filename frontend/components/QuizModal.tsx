@@ -64,8 +64,9 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
 
   const prevQuizIdRef = useRef<string | null>(null);
   const completionFiredRef = useRef(false);
+  const rockyPlayedRef = useRef(false);
   const modalContentRef = useRef<HTMLDivElement>(null);
-  const { playCorrect, playWrong, playComplete, playCombo } = useSound();
+  const { playCorrect, playWrong, playComplete, playCombo, playRocky, stopRocky } = useSound();
 
   const fireConfetti = () => {
     const duration = 3000;
@@ -108,6 +109,7 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
     if (quiz && isNewQuiz) {
       prevQuizIdRef.current = quizKey || null;
       completionFiredRef.current = false;
+      rockyPlayedRef.current = false;
       if (initialProgress) {
         setCurrentIndex(initialProgress.currentIndex);
         setScore(initialProgress.score);
@@ -139,10 +141,17 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
       confettiCleanup = fireConfetti();
       playComplete();
       const isPerfectScore = score === quiz.questions.length && quiz.questions.every((_, i) => attempts[i] === 1);
-      if (isPerfectScore && onPerfectQuiz) {
-        const bonus = onPerfectQuiz(quiz.questions.length);
-        setXPGained(bonus);
-        setTimeout(() => setXPGained(null), 2500);
+      if (isPerfectScore) {
+        // Play Rocky theme for perfect score (only once per quiz)
+        if (!rockyPlayedRef.current) {
+          rockyPlayedRef.current = true;
+          playRocky();
+        }
+        if (onPerfectQuiz) {
+          const bonus = onPerfectQuiz(quiz.questions.length);
+          setXPGained(bonus);
+          setTimeout(() => setXPGained(null), 2500);
+        }
       }
     }
 
@@ -167,6 +176,12 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
   useEffect(() => {
     setPortalRoot(document.getElementById("modal-root"));
   }, []);
+
+  // Wrapper to stop Rocky theme when closing
+  const handleClose = () => {
+    stopRocky();
+    onClose();
+  };
 
   if (!open || !quiz) return null;
   if (!portalRoot) return null; // SSR or portal not ready
@@ -348,7 +363,7 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
               </div>
             </div>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className={`
                 p-3 border-2 border-[hsl(var(--border))]
                 bg-[hsl(var(--bg-surface))]
@@ -471,7 +486,7 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
                   </button>
                 )}
                 <button
-                  onClick={onClose}
+                  onClick={handleClose}
                   className={`
                     px-6 py-4
                     font-display text-sm

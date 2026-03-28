@@ -13,6 +13,7 @@ const SOUNDS = {
   combo: "/sounds/combo.wav",
   complete: "/sounds/complete.wav",
   vortex: "/sounds/vortex.mp3",
+  rocky: "/sounds/rocky.mp3",
 } as const;
 
 type SoundType = keyof typeof SOUNDS;
@@ -25,6 +26,7 @@ const SOUND_DEBOUNCE: Record<SoundType, number> = {
   combo: 500,
   complete: 1000,
   vortex: 800,
+  rocky: 0, // No debounce for theme song
 };
 
 // Volume levels for each sound
@@ -35,6 +37,7 @@ const SOUND_VOLUMES: Record<SoundType, number> = {
   combo: 0.5,
   complete: 0.6,
   vortex: 0.6,
+  rocky: 0.5,
 };
 
 export function useSound() {
@@ -120,6 +123,16 @@ export function useSound() {
   const playCombo = useCallback(() => playSound("combo"), [playSound]);
   const playComplete = useCallback(() => playSound("complete"), [playSound]);
   const playVortex = useCallback(() => playSound("vortex"), [playSound]);
+  const playRocky = useCallback(() => playSound("rocky"), [playSound]);
+
+  // Stop Rocky theme (for when quiz closes)
+  const stopRocky = useCallback(() => {
+    const audio = audioCache.current.get("rocky");
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+  }, []);
 
   return {
     soundEnabled,
@@ -130,5 +143,7 @@ export function useSound() {
     playCombo,
     playClick,
     playVortex,
+    playRocky,
+    stopRocky,
   };
 }
