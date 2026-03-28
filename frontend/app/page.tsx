@@ -74,19 +74,21 @@ export default function Home() {
   // Cap history to prevent localStorage overflow (~5-10MB limit, images are ~100KB+ each)
   const MAX_HISTORY_ITEMS = 50;
 
-  // Load history from localStorage on mount
+  // Load history from localStorage on mount (with cleanup for oversized data)
   useEffect(() => {
     const savedHistory = localStorage.getItem("ace-it-history");
     if (savedHistory) {
       try {
         const parsed = JSON.parse(savedHistory);
-        // Convert timestamp strings back to Date objects and cap to max items
+        // Convert timestamp strings back to Date objects, cap items, and prune old images
         const restored = parsed
-          .map((item: Inquiry) => ({
+          .slice(0, MAX_HISTORY_ITEMS)
+          .map((item: Inquiry, index: number) => ({
             ...item,
             timestamp: new Date(item.timestamp),
-          }))
-          .slice(0, MAX_HISTORY_ITEMS);
+            // Remove images from items older than 10 to reduce storage
+            image: index < 10 ? item.image : null,
+          }));
         setHistory(restored);
       } catch (e) {
         console.error("Failed to load history:", e);
@@ -94,11 +96,63 @@ export default function Home() {
     }
   }, []);
 
-  // Save history to localStorage whenever it changes
+  // Save history to localStorage whenever it changes (with quota handling)
   useEffect(() => {
-    if (history.length > 0) {
-      localStorage.setItem("ace-it-history", JSON.stringify(history));
+    if (history.length === 0) return;
+
+    const saveHistory = (items: typeof history): boolean => {
+      try {
+        localStorage.setItem("ace-it-history", JSON.stringify(items));
+        return true;
+      } catch (e) {
+        if (e instanceof DOMException && e.name === "QuotaExceededError") {
+          return false;
+        }
+        console.error("Failed to save history:", e);
+        return true; // Don't retry on other errors
+      }
+    };
+
+    // Try to save as-is
+    if (saveHistory(history)) return;
+
+    // Quota exceeded - progressively reduce data
+    console.warn("localStorage quota exceeded, pruning history...");
+
+    // Step 1: Remove images from older items (keep first 5 with images)
+    let pruned = history.map((item, i) =>
+      i >= 5 && item.image ? { ...item, image: null } : item
+    );
+    if (saveHistory(pruned)) {
+      console.log("Saved after removing old images");
+      return;
     }
+
+    // Step 2: Remove all images except current
+    pruned = history.map((item, i) =>
+      i > 0 ? { ...item, image: null } : item
+    );
+    if (saveHistory(pruned)) {
+      console.log("Saved after removing all old images");
+      return;
+    }
+
+    // Step 3: Keep only last 20 items without images
+    pruned = history.slice(0, 20).map((item) => ({ ...item, image: null }));
+    if (saveHistory(pruned)) {
+      console.log("Saved after aggressive pruning");
+      return;
+    }
+
+    // Step 4: Nuclear option - keep only 10 items, no images, no quiz data
+    pruned = history.slice(0, 10).map((item) => ({
+      ...item,
+      image: null,
+      quiz: null,
+      quizProgress: null,
+    }));
+    saveHistory(pruned);
+    console.log("Saved with minimal data");
   }, [history]);
 
   const generateQuiz = async (
