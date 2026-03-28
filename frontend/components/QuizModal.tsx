@@ -255,7 +255,9 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
 
   return (
     <div className={`
-      fixed inset-0 z-50 flex items-center justify-center
+      fixed inset-0 z-50
+      flex items-center justify-center
+      sm:p-4
       bg-[hsl(var(--bg-deep))]
       animate-crt-boot
       overflow-hidden
@@ -476,10 +478,10 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
             /* Question area */
             <>
               {/* Question text */}
-              <div className="mb-6 p-4 bg-[hsl(var(--bg-deep))] border-2 border-[hsl(var(--border))]">
+              <div className="mb-6 p-4 bg-[hsl(var(--bg-deep))] border-2 border-[hsl(var(--border))] overflow-hidden">
                 <div className="flex items-start gap-3">
                   <span className="font-display text-sm text-[hsl(var(--neon-cyan))] shrink-0">Q{currentIndex + 1}:</span>
-                  <p className="font-body text-base sm:text-lg text-[hsl(var(--text-primary))] leading-relaxed">
+                  <p className="flex-1 min-w-0 break-words font-body text-base sm:text-lg text-[hsl(var(--text-primary))] leading-relaxed">
                     {currentQuestion.question}
                   </p>
                 </div>
@@ -541,7 +543,8 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
 
                       {/* Answer text */}
                       <span className={`
-                        font-body text-sm sm:text-base pt-2
+                        flex-1 min-w-0 break-words
+                        font-body text-sm sm:text-base pt-2 pr-8
                         ${showFeedback && isSelected
                           ? isCorrect ? "text-[hsl(var(--neon-green))]" : "text-[hsl(var(--neon-red))]"
                           : showFeedback && isCorrectChoice && !isCorrect
@@ -598,11 +601,11 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
 
                       {/* Type to continue for wrong answers */}
                       {!isCorrect && !typedCorrect && (
-                        <div className="mt-4 pt-4 border-t border-[hsl(var(--neon-red))]/30">
+                        <div className="mt-4 pt-4 border-t border-[hsl(var(--neon-red))]/30 overflow-hidden">
                           <p className="font-accent text-xs text-[hsl(var(--text-muted))] mb-3 tracking-wider">
                             TYPE THE CORRECT ANSWER TO CONTINUE:
                           </p>
-                          <div className="flex gap-2">
+                          <div className="flex flex-col sm:flex-row gap-2">
                             <input
                               type="text"
                               value={typedAnswer}
@@ -611,7 +614,7 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
                               placeholder="Type here..."
                               disabled={validating}
                               className={`
-                                flex-1 px-4 py-3
+                                flex-1 min-w-0 px-4 py-3
                                 font-body text-sm
                                 bg-[hsl(var(--bg-deep))]
                                 border-2 border-[hsl(var(--border))]
@@ -625,7 +628,7 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
                               onClick={handleTypedAnswerSubmit}
                               disabled={validating}
                               className={`
-                                px-5 py-3
+                                shrink-0 px-5 py-3
                                 font-display text-xs
                                 border-2 border-[hsl(var(--neon-cyan))]
                                 text-[hsl(var(--neon-cyan))]
