@@ -405,9 +405,8 @@ export default function Home() {
   };
 
   const handleNewSearch = () => {
-    // Just show the search bar - don't clear current content
-    // Content will be replaced when a new search is submitted
-    setSearchBarVisible(true);
+    // Navigate to a fresh page
+    window.location.href = '/';
   };
 
   const handleClearHistory = () => {
