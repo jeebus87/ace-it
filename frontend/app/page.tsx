@@ -405,12 +405,9 @@ export default function Home() {
   };
 
   const handleNewSearch = () => {
+    // Just show the search bar - don't clear current content
+    // Content will be replaced when a new search is submitted
     setSearchBarVisible(true);
-    setAnswer("");
-    setImage(null);
-    setQuiz(null);
-    setQuizProgress(null);
-    setCurrentInquiryId(null);
   };
 
   const handleClearHistory = () => {
