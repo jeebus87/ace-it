@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { X, CheckCircle, XCircle, Trophy, Crown, Flame, Zap, Star, Target } from "lucide-react";
 import confetti from "canvas-confetti";
 import { QuizProgress } from "./HistorySidebar";
@@ -160,7 +161,14 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
     }
   }, [open]);
 
+  // Get portal root for rendering outside filtered content
+  const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setPortalRoot(document.getElementById("modal-root"));
+  }, []);
+
   if (!open || !quiz) return null;
+  if (!portalRoot) return null; // SSR or portal not ready
 
   const currentQuestion = quiz.questions[currentIndex];
   const correctAnswerText = currentQuestion.choices[currentQuestion.correct as keyof typeof currentQuestion.choices];
@@ -253,7 +261,7 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
   const isPerfect = score === quiz.questions.length && quiz.questions.every((_, i) => attempts[i] === 1);
   const progressPercent = ((currentIndex + 1) / quiz.questions.length) * 100;
 
-  return (
+  return createPortal(
     <div className={`
       fixed inset-0 z-50
       flex items-start sm:items-center justify-center
@@ -669,6 +677,7 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    portalRoot
   );
 }

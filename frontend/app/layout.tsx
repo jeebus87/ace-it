@@ -59,12 +59,14 @@ export default function RootLayout({
           ${silkscreen.variable}
           font-body
           antialiased
-          retro-grid
-          crt-overlay
-          animate-crt-boot
         `}
       >
-        {children}
+        {/* Main content wrapper with CRT effects - modals portal outside this */}
+        <div className="retro-grid crt-overlay animate-crt-boot min-h-screen">
+          {children}
+        </div>
+        {/* Portal root for modals - outside filtered content */}
+        <div id="modal-root" />
       </body>
     </html>
   );
