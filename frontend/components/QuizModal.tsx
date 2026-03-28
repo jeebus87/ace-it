@@ -303,8 +303,8 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
       <div
         ref={modalContentRef}
         className={`
-          relative
-          w-full h-full sm:h-auto sm:max-h-[90vh]
+          fixed inset-0 sm:relative sm:inset-auto
+          w-full sm:h-auto sm:max-h-[90vh]
           sm:max-w-2xl
           bg-[hsl(var(--bg-surface))]
           border-0 sm:border-4 ${diffStyle.border}
