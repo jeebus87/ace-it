@@ -225,9 +225,11 @@ export default function Home() {
   };
 
   const handleSearch = async (query: string) => {
-    // Trigger black hole animation and sound
+    // Play sound immediately, delay animation by 2 seconds
     playVortex();
-    setIsBeingSucked(true);
+    setTimeout(() => {
+      setIsBeingSucked(true);
+    }, 2000);
 
     setLoading(true);
     setAnswer("");
