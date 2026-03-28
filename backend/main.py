@@ -15,13 +15,13 @@ app = modal.App("ace-it-backend")
 # RESOURCE CONFIGURATIONS - Production-grade limits
 # =============================================================================
 # Light workloads (validation, simple queries)
-LIGHT_CONFIG = dict(cpu=0.5, memory=512, timeout=30, container_idle_timeout=300)
+LIGHT_CONFIG = dict(cpu=0.5, memory=512, timeout=30, scaledown_window=300)
 # Standard workloads (answer generation, quiz generation)
-STANDARD_CONFIG = dict(cpu=1.0, memory=1024, timeout=120, container_idle_timeout=300)
+STANDARD_CONFIG = dict(cpu=1.0, memory=1024, timeout=120, scaledown_window=300)
 # Heavy workloads (image generation, file processing)
-HEAVY_CONFIG = dict(cpu=1.0, memory=2048, timeout=180, container_idle_timeout=300)
+HEAVY_CONFIG = dict(cpu=1.0, memory=2048, timeout=180, scaledown_window=300)
 # Long-running workloads (deep research)
-LONG_RUNNING_CONFIG = dict(cpu=2.0, memory=4096, timeout=3600, container_idle_timeout=600)
+LONG_RUNNING_CONFIG = dict(cpu=2.0, memory=4096, timeout=3600, scaledown_window=600)
 
 # =============================================================================
 # PRODUCTION INFRASTRUCTURE
