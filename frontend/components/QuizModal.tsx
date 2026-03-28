@@ -109,9 +109,6 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
     const isNewQuiz = quizKey !== prevQuizIdRef.current;
     if (quiz && isNewQuiz) {
       prevQuizIdRef.current = quizKey || null;
-      completionFiredRef.current = false;
-      rockyPlayedRef.current = false;
-      applausePlayedRef.current = false;
       if (initialProgress) {
         setCurrentIndex(initialProgress.currentIndex);
         setScore(initialProgress.score);
@@ -120,8 +117,21 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
         setAllDisabledChoices(initialProgress.disabledChoices);
         const currentDisabled = initialProgress.disabledChoices[initialProgress.currentIndex] || [];
         setDisabledChoices(new Set(currentDisabled));
+        // If quiz was already completed, mark sounds as played to prevent replay
+        if (initialProgress.completed) {
+          completionFiredRef.current = true;
+          rockyPlayedRef.current = true;
+          applausePlayedRef.current = true;
+        } else {
+          completionFiredRef.current = false;
+          rockyPlayedRef.current = false;
+          applausePlayedRef.current = false;
+        }
       } else {
         setCurrentIndex(0); setScore(0); setAttempts({}); setCompleted(false); setAllDisabledChoices({}); setDisabledChoices(new Set());
+        completionFiredRef.current = false;
+        rockyPlayedRef.current = false;
+        applausePlayedRef.current = false;
       }
       setSelectedAnswer(null); setShowFeedback(false); setTypedAnswer(""); setTypedCorrect(false); setCombo(0);
     }
