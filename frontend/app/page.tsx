@@ -225,11 +225,11 @@ export default function Home() {
   };
 
   const handleSearch = async (query: string) => {
-    // Play sound immediately, delay animation by 3 seconds
+    // Play sound immediately, start animation shortly after (while sound plays)
     playVortex();
     setTimeout(() => {
       setIsBeingSucked(true);
-    }, 3000);
+    }, 500);
 
     setLoading(true);
     setAnswer("");
