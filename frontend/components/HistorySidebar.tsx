@@ -26,10 +26,16 @@ export interface QuizProgress {
   disabledChoices: Record<number, string[]>;
 }
 
+export interface Source {
+  title: string;
+  url: string;
+}
+
 export interface Inquiry {
   id: string;
   query: string;
   answer: string;
+  sources: Source[] | null;
   image: string | null;
   quiz: Quiz | null;
   quizProgress: QuizProgress | null;

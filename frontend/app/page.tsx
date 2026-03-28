@@ -37,6 +37,7 @@ interface Quiz {
 
 export default function Home() {
   const [answer, setAnswer] = useState("");
+  const [sources, setSources] = useState<Array<{ title: string; url: string }> | null>(null);
   const [image, setImage] = useState<string | null>(null);
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [loading, setLoading] = useState(false);
@@ -269,7 +270,9 @@ export default function Home() {
       }
 
       const generatedAnswer = answerData.answer || "";
+      const generatedSources = answerData.sources || null;
       setAnswer(generatedAnswer);
+      setSources(generatedSources);
       setImageStatus("loading");
 
       // 2. Generate image in background (don't block the flow)
@@ -322,6 +325,7 @@ export default function Home() {
         id: inquiryId,
         query,
         answer: generatedAnswer,
+        sources: generatedSources,
         image: null,
         quiz: null,
         quizProgress: null,
@@ -413,6 +417,7 @@ export default function Home() {
   const handleSelectInquiry = (inquiry: Inquiry) => {
     setCurrentInquiryId(inquiry.id);
     setAnswer(inquiry.answer);
+    setSources(inquiry.sources);
     setImage(inquiry.image);
     setQuiz(inquiry.quiz);
     setQuizProgress(inquiry.quizProgress);
@@ -577,7 +582,7 @@ export default function Home() {
       )}
 
       {/* Answer */}
-      <AnswerDisplay content={answer} loading={loading && !answer} />
+      <AnswerDisplay content={answer} sources={sources} loading={loading && !answer} />
 
       {/* Image */}
       {image && <ImageViewer src={image} />}

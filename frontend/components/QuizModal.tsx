@@ -153,8 +153,8 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
   useEffect(() => {
     let confettiCleanup: (() => void) | null = null;
 
-    // Only fire completion if quiz has been initialized (prevents race condition on load)
-    if (completed && quiz && !completionFiredRef.current && quizInitializedRef.current) {
+    // Only fire completion if quiz has been initialized AND modal is open (prevents race condition on load and background quiz generation)
+    if (completed && quiz && !completionFiredRef.current && quizInitializedRef.current && open) {
       completionFiredRef.current = true;
       confettiCleanup = fireConfetti();
       playComplete();
@@ -183,7 +183,7 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
       if (confettiCleanup) confettiCleanup();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [completed, quiz]);
+  }, [completed, quiz, open]);
 
   // Lock body scroll when modal is open
   useEffect(() => {

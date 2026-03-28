@@ -1,6 +1,7 @@
 "use client";
 
 import ReactMarkdown, { Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Terminal, Database, Cpu } from "lucide-react";
 
 // Custom components for ReactMarkdown with arcade styling
@@ -95,14 +96,25 @@ const markdownComponents: Components = {
   td: ({ children }) => (
     <td className="border border-[hsl(var(--border))] p-3 text-sm">{children}</td>
   ),
+  sup: ({ children }) => (
+    <sup className="text-[hsl(var(--neon-cyan))] font-mono text-xs cursor-pointer hover:text-[hsl(var(--neon-magenta))]">
+      {children}
+    </sup>
+  ),
 };
+
+interface Source {
+  title: string;
+  url: string;
+}
 
 interface AnswerDisplayProps {
   content: string;
+  sources?: Source[] | null;
   loading?: boolean;
 }
 
-export function AnswerDisplay({ content, loading }: AnswerDisplayProps) {
+export function AnswerDisplay({ content, sources, loading }: AnswerDisplayProps) {
   if (!content && !loading) return null;
 
   return (
@@ -195,7 +207,7 @@ export function AnswerDisplay({ content, loading }: AnswerDisplayProps) {
 
               {/* Markdown content with arcade styling */}
               <div className="max-w-none">
-                <ReactMarkdown components={markdownComponents}>{content}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{content}</ReactMarkdown>
               </div>
 
               {/* End marker */}
@@ -204,6 +216,33 @@ export function AnswerDisplay({ content, loading }: AnswerDisplayProps) {
                 <span className="font-accent text-xs text-[hsl(var(--text-muted))] tracking-wider">END_OF_OUTPUT</span>
                 <span className="text-[hsl(var(--neon-green))] animate-cursor">_</span>
               </div>
+
+              {/* Sources section */}
+              {sources && sources.length > 0 && (
+                <div className="mt-6 pt-4 border-t border-[hsl(var(--border))]">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-[hsl(var(--neon-cyan))]">&gt;</span>
+                    <span className="font-accent text-xs text-[hsl(var(--neon-cyan))] tracking-wider">SOURCES</span>
+                  </div>
+                  <ol className="space-y-2">
+                    {sources.map((source, i) => (
+                      <li key={i} className="flex items-start gap-3 group">
+                        <span className="font-mono text-xs text-[hsl(var(--neon-green))] mt-0.5 shrink-0">
+                          [{i + 1}]
+                        </span>
+                        <a
+                          href={source.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-body text-sm text-[hsl(var(--neon-magenta))] hover:text-[hsl(var(--neon-cyan))] underline decoration-[hsl(var(--neon-magenta))]/50 hover:decoration-[hsl(var(--neon-cyan))] transition-colors truncate max-w-full"
+                        >
+                          {source.title || source.url}
+                        </a>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
             </div>
           )}
         </div>

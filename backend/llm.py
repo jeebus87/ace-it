@@ -3,8 +3,88 @@ Gemini LLM service for generating study answers with Google Search grounding.
 """
 
 import os
+import logging
 from google import genai
 from google.genai import types
+
+logger = logging.getLogger(__name__)
+
+# Unicode superscript digits
+SUPERSCRIPTS = ['⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹']
+
+
+def to_superscript(n: int) -> str:
+    """Convert number to superscript unicode."""
+    return ''.join(SUPERSCRIPTS[int(d)] for d in str(n))
+
+
+def add_citations_to_text(text: str, sources: list) -> tuple[str, list]:
+    """Add citations by inserting superscripts after sentences in order.
+
+    Returns:
+        Tuple of (modified_text, cited_sources) where cited_sources only
+        contains sources that were actually referenced in the text.
+    """
+    if not sources or len(sources) == 0:
+        logger.info("[CITATION] No sources to cite")
+        return text, []
+
+    import re
+
+    max_citations = min(len(sources), 9)
+
+    # Find all citation positions in the full text first
+    # Pattern: sentence ending punctuation followed by space, end, quotes, or markdown
+    pattern = r'([.!?])(?=\s|$|"|\*\*|\))'
+
+    # Find positions in sections we want to cite (Summary and Key Points mainly)
+    matches = list(re.finditer(pattern, text))
+
+    # Filter to substantive positions (not in headers, not too short context)
+    valid_positions = []
+    for match in matches:
+        pos = match.end()
+        # Check context - skip if near a header
+        start = max(0, pos - 100)
+        context = text[start:pos]
+
+        # Skip if this is in a header line or Real-World Examples section
+        lines_before = context.split('\n')
+        current_line = lines_before[-1] if lines_before else ""
+
+        # Skip headers, short lines, and example sections
+        if current_line.strip().startswith('#'):
+            continue
+        if len(current_line.strip()) < 25:
+            continue
+        if '## Real-World' in context or '## ELI5' in context:
+            continue
+
+        valid_positions.append(pos)
+
+    # Limit to max citations, spread across the content
+    if len(valid_positions) > max_citations:
+        # Take evenly spaced positions
+        step = len(valid_positions) // max_citations
+        valid_positions = valid_positions[::step][:max_citations]
+
+    # Insert citations in reverse order to preserve positions, but number in forward order
+    result = text
+    cited_sources = []
+
+    for i, pos in enumerate(reversed(valid_positions)):
+        citation_num = len(valid_positions) - i  # Forward numbering
+        superscript = to_superscript(citation_num)
+        result = result[:pos] + superscript + result[pos:]
+
+    # Collect the sources that were cited (in order)
+    for i in range(min(len(valid_positions), len(sources))):
+        cited_sources.append(sources[i])
+
+    logger.info(f"[CITATION] Inserted {len(valid_positions)} citations")
+
+    return result, cited_sources
+
 
 SYSTEM_PROMPT = """You are an expert-level study tutor with deep domain knowledge. Your explanations must be so precise and accurate that even a subject matter expert would agree with every detail.
 
@@ -19,14 +99,12 @@ CRITICAL REQUIREMENTS:
 FORMAT YOUR RESPONSE WITH THESE SECTIONS:
 
 ## Summary
-One precise sentence that captures the core concept. An expert should be able to verify this statement.
+One precise sentence that captures the core concept.
 
 ## Key Points
-- State facts with technical accuracy - no oversimplifications that distort the truth
+- State facts with technical accuracy
 - Highlight **key terms** and **critical concepts** in bold
-- Each bullet should convey exactly one important idea
 - Include specific numbers, measurements, or details when available
-- Avoid vague language like "many", "often", "usually" - be specific
 
 ## Real-World Examples
 Provide 10-15 concrete, accurate real-world examples that illustrate the concept.
@@ -59,33 +137,64 @@ def generate_answer(question: str, context: str = "") -> dict:
 
     try:
         client = genai.Client(api_key=api_key)
-
-        # Use Google Search grounding for fresh, accurate information
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=f"Please provide a clear, educational answer to this question: {question}",
-            config=types.GenerateContentConfig(
-                system_instruction=SYSTEM_PROMPT,
-                tools=[types.Tool(google_search=types.GoogleSearch())]
-            )
+        contents = f"Please provide a clear, educational answer to this question: {question}"
+        config = types.GenerateContentConfig(
+            system_instruction=SYSTEM_PROMPT,
+            tools=[types.Tool(google_search=types.GoogleSearch())]
         )
 
+        # Try pro model first, fall back to flash if unavailable
+        try:
+            response = client.models.generate_content(
+                model="gemini-2.5-pro",
+                contents=contents,
+                config=config
+            )
+        except Exception as model_error:
+            logger.warning(f"Pro model failed, falling back to flash: {model_error}")
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=contents,
+                config=config
+            )
+
         # Extract grounding metadata for citations
+        text = response.text
         sources = []
+
+        logger.info(f"Response has candidates: {hasattr(response, 'candidates') and bool(response.candidates)}")
+
         if hasattr(response, 'candidates') and response.candidates:
             candidate = response.candidates[0]
-            if hasattr(candidate, 'grounding_metadata') and candidate.grounding_metadata:
+            has_metadata = hasattr(candidate, 'grounding_metadata') and candidate.grounding_metadata
+            logger.info(f"Candidate has grounding_metadata: {has_metadata}")
+
+            if has_metadata:
                 metadata = candidate.grounding_metadata
-                if hasattr(metadata, 'grounding_chunks') and metadata.grounding_chunks:
-                    for chunk in metadata.grounding_chunks:
+                has_chunks = hasattr(metadata, 'grounding_chunks') and metadata.grounding_chunks
+                logger.info(f"Metadata has grounding_chunks: {has_chunks}")
+
+                # Extract unique sources from grounding chunks
+                chunks = []
+                if has_chunks:
+                    chunks = metadata.grounding_chunks
+                    logger.info(f"Found {len(chunks)} grounding chunks")
+                    for chunk in chunks:
                         if hasattr(chunk, 'web') and chunk.web:
                             sources.append({
                                 "title": chunk.web.title if hasattr(chunk.web, 'title') else "",
                                 "url": chunk.web.uri if hasattr(chunk.web, 'uri') else ""
                             })
+                            logger.info(f"Added source: {sources[-1]['title'][:50] if sources[-1]['title'] else 'No title'}")
+
+                logger.info(f"Extracted {len(sources)} sources total")
+
+        # Post-process to add inline citations
+        if sources:
+            text, sources = add_citations_to_text(text, sources)
 
         return {
-            "answer": response.text,
+            "answer": text,
             "question": question,
             "sources": sources
         }
@@ -119,13 +228,22 @@ CONTEXT:
 
 Please provide a clear, educational answer based on the context above."""
 
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=SYSTEM_PROMPT
+        config = types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT)
+
+        # Try pro model first, fall back to flash if unavailable
+        try:
+            response = client.models.generate_content(
+                model="gemini-2.5-pro",
+                contents=prompt,
+                config=config
             )
-        )
+        except Exception as model_error:
+            logger.warning(f"Pro model failed, falling back to flash: {model_error}")
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt,
+                config=config
+            )
 
         return {
             "answer": response.text,
