@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { SearchBar } from "@/components/SearchBar";
 import { AnswerDisplay } from "@/components/AnswerDisplay";
 import { ImageViewer } from "@/components/ImageViewer";
@@ -74,6 +74,12 @@ export default function Home() {
   // History state - persisted to localStorage
   const [history, setHistory] = useState<Inquiry[]>([]);
   const [currentInquiryId, setCurrentInquiryId] = useState<string | null>(null);
+
+  // Ref to track current inquiry for async callbacks (prevents race conditions)
+  const currentInquiryRef = useRef<string | null>(null);
+  useEffect(() => {
+    currentInquiryRef.current = currentInquiryId;
+  }, [currentInquiryId]);
 
   // Cap history to prevent localStorage overflow (~5-10MB limit, images are ~100KB+ each)
   const MAX_HISTORY_ITEMS = 50;
@@ -187,15 +193,20 @@ export default function Home() {
       const quizData = await quizRes.json();
       if (quizData.questions?.length > 0) {
         const newQuiz = { ...quizData, difficulty: selectedDifficulty, quizId: `quiz-${Date.now()}` };
-        setQuiz(newQuiz);
-        // Update history with quiz
         const updateId = inquiryId || currentInquiryId;
+
+        // Always update history (persisted data)
         if (updateId) {
           setHistory((prev) =>
             prev.map((item) =>
               item.id === updateId ? { ...item, quiz: newQuiz } : item
             )
           );
+        }
+
+        // Only update display state if user is still viewing this inquiry
+        if (currentInquiryRef.current === updateId) {
+          setQuiz(newQuiz);
         }
       }
     } catch (error) {
@@ -274,25 +285,35 @@ export default function Home() {
           });
           const imageData = await imageRes.json();
 
+          // Always update history (persisted data)
           if (imageData.image && typeof imageData.image === "string" && imageData.image.startsWith("data:")) {
-            setImage(imageData.image);
-            // Update history entry with image
             setHistory((prev) => prev.map((item) => (item.id === inquiryId ? { ...item, image: imageData.image } : item)));
-            console.log("Image generated successfully");
-            setImageStatus("");
-          } else if (imageData.reason === "FinishReason.PROHIBITED_CONTENT") {
-            console.log("Image blocked due to content policy");
-            setImageStatus("content-blocked");
-          } else if (imageData.error) {
-            console.error("Image generation error:", imageData.error);
-            setImageStatus("error");
-          } else {
-            setImageStatus("");
-            console.warn("Image response missing image data:", imageData);
+            console.log("Image generated successfully for", inquiryId);
+
+            // Only update display state if user is still viewing this inquiry
+            if (currentInquiryRef.current === inquiryId) {
+              setImage(imageData.image);
+              setImageStatus("");
+            }
+          } else if (currentInquiryRef.current === inquiryId) {
+            // Only update status if still viewing this inquiry
+            if (imageData.reason === "FinishReason.PROHIBITED_CONTENT") {
+              console.log("Image blocked due to content policy");
+              setImageStatus("content-blocked");
+            } else if (imageData.error) {
+              console.error("Image generation error:", imageData.error);
+              setImageStatus("error");
+            } else {
+              setImageStatus("");
+              console.warn("Image response missing image data:", imageData);
+            }
           }
         } catch (imageError) {
           console.error("Image fetch error:", imageError);
-          setImageStatus("fetch-error");
+          // Only update status if still viewing this inquiry
+          if (currentInquiryRef.current === inquiryId) {
+            setImageStatus("fetch-error");
+          }
         }
       })();
 
