@@ -7,6 +7,7 @@ import confetti from "canvas-confetti";
 import { QuizProgress } from "./HistorySidebar";
 import { useSound } from "@/hooks/useSound";
 import { isFuzzyMatch } from "@/lib/fuzzy-match";
+import { fetchWithRetry } from "@/lib/fetch-with-retry";
 
 interface Question {
   id: number;
@@ -207,15 +208,19 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
 
     setValidating(true);
     try {
-      const response = await fetch("https://jeebus87--ace-it-backend-validate-answer.modal.run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          typed: typedAnswer,
-          correct: correctAnswerText,
-          question: currentQuestion.question,
-        }),
-      });
+      const response = await fetchWithRetry(
+        "https://jeebus87--ace-it-backend-validate-answer.modal.run",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            typed: typedAnswer,
+            correct: correctAnswerText,
+            question: currentQuestion.question,
+          }),
+        },
+        { maxRetries: 2 } // Less aggressive since we have fuzzy match fallback
+      );
 
       const data = await response.json();
 

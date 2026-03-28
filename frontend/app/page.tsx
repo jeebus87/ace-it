@@ -17,6 +17,7 @@ import { useStreak } from "@/hooks/useStreak";
 import { useXP } from "@/hooks/useXP";
 import { useStats } from "@/hooks/useStats";
 import { LevelBadge } from "@/components/LevelBadge";
+import { fetchWithRetry } from "@/lib/fetch-with-retry";
 
 interface Question {
   id: number;
@@ -70,17 +71,22 @@ export default function Home() {
   const [history, setHistory] = useState<Inquiry[]>([]);
   const [currentInquiryId, setCurrentInquiryId] = useState<string | null>(null);
 
+  // Cap history to prevent localStorage overflow (~5-10MB limit, images are ~100KB+ each)
+  const MAX_HISTORY_ITEMS = 50;
+
   // Load history from localStorage on mount
   useEffect(() => {
     const savedHistory = localStorage.getItem("ace-it-history");
     if (savedHistory) {
       try {
         const parsed = JSON.parse(savedHistory);
-        // Convert timestamp strings back to Date objects
-        const restored = parsed.map((item: Inquiry) => ({
-          ...item,
-          timestamp: new Date(item.timestamp),
-        }));
+        // Convert timestamp strings back to Date objects and cap to max items
+        const restored = parsed
+          .map((item: Inquiry) => ({
+            ...item,
+            timestamp: new Date(item.timestamp),
+          }))
+          .slice(0, MAX_HISTORY_ITEMS);
         setHistory(restored);
       } catch (e) {
         console.error("Failed to load history:", e);
@@ -111,7 +117,7 @@ export default function Home() {
         body: JSON.stringify({ typed: "warmup", correct: "warmup", question: "warmup" }),
       }).catch(() => {}); // Ignore errors, this is just a warm-up
 
-      const quizRes = await fetch("https://jeebus87--ace-it-backend-quiz.modal.run", {
+      const quizRes = await fetchWithRetry("https://jeebus87--ace-it-backend-quiz.modal.run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -174,7 +180,7 @@ export default function Home() {
 
     try {
       // 1. Generate answer with Google Search grounding (single API call)
-      const answerRes = await fetch("https://jeebus87--ace-it-backend-generate.modal.run", {
+      const answerRes = await fetchWithRetry("https://jeebus87--ace-it-backend-generate.modal.run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question: query }),
@@ -189,54 +195,54 @@ export default function Home() {
 
       const generatedAnswer = answerData.answer || "";
       setAnswer(generatedAnswer);
-      setStatus("Generating visual...");
       setImageStatus("loading");
 
-      // 2. Generate image (don't let image errors block the flow)
-      let generatedImage: string | null = null;
-      try {
-        const imageRes = await fetch("https://jeebus87--ace-it-backend-image-gen.modal.run", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            question: query,
-            summary: generatedAnswer.substring(0, 500) || "",
-          }),
-        });
-        const imageData = await imageRes.json();
+      // 2. Generate image in background (don't block the flow)
+      (async () => {
+        try {
+          const imageRes = await fetchWithRetry("https://jeebus87--ace-it-backend-image-gen.modal.run", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              question: query,
+              summary: generatedAnswer.substring(0, 500) || "",
+            }),
+          });
+          const imageData = await imageRes.json();
 
-        if (imageData.image && typeof imageData.image === "string" && imageData.image.startsWith("data:")) {
-          generatedImage = imageData.image;
-          setImage(generatedImage);
-          console.log("Image generated successfully");
-          setImageStatus("");
-        } else if (imageData.reason === "FinishReason.PROHIBITED_CONTENT") {
-          console.log("Image blocked due to content policy");
-          setImageStatus("content-blocked");
-        } else if (imageData.error) {
-          console.error("Image generation error:", imageData.error);
-          setImageStatus("error");
-        } else {
-          setImageStatus("");
-          console.warn("Image response missing image data:", imageData);
+          if (imageData.image && typeof imageData.image === "string" && imageData.image.startsWith("data:")) {
+            setImage(imageData.image);
+            // Update history entry with image
+            setHistory((prev) => prev.map((item) => (item.id === inquiryId ? { ...item, image: imageData.image } : item)));
+            console.log("Image generated successfully");
+            setImageStatus("");
+          } else if (imageData.reason === "FinishReason.PROHIBITED_CONTENT") {
+            console.log("Image blocked due to content policy");
+            setImageStatus("content-blocked");
+          } else if (imageData.error) {
+            console.error("Image generation error:", imageData.error);
+            setImageStatus("error");
+          } else {
+            setImageStatus("");
+            console.warn("Image response missing image data:", imageData);
+          }
+        } catch (imageError) {
+          console.error("Image fetch error:", imageError);
+          setImageStatus("fetch-error");
         }
-      } catch (imageError) {
-        console.error("Image fetch error:", imageError);
-        setImageStatus("fetch-error");
-        // Continue without image - don't block the rest of the flow
-      }
+      })();
 
-      // 3. Save to history (before quiz generation)
+      // 3. Save to history immediately (image will update when ready)
       const newInquiry: Inquiry = {
         id: inquiryId,
         query,
         answer: generatedAnswer,
-        image: generatedImage,
+        image: null,
         quiz: null,
         quizProgress: null,
         timestamp: new Date(),
       };
-      setHistory((prev) => [newInquiry, ...prev]);
+      setHistory((prev) => [newInquiry, ...prev].slice(0, MAX_HISTORY_ITEMS));
 
       // 4. Handle quiz generation based on difficulty preference
       if (dontAskAgain) {

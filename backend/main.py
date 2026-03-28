@@ -11,6 +11,84 @@ import time
 
 app = modal.App("ace-it-backend")
 
+# =============================================================================
+# RESOURCE CONFIGURATIONS - Production-grade limits
+# =============================================================================
+# Light workloads (validation, simple queries)
+LIGHT_CONFIG = dict(cpu=0.5, memory=512, timeout=30, container_idle_timeout=300)
+# Standard workloads (answer generation, quiz generation)
+STANDARD_CONFIG = dict(cpu=1.0, memory=1024, timeout=120, container_idle_timeout=300)
+# Heavy workloads (image generation, file processing)
+HEAVY_CONFIG = dict(cpu=1.0, memory=2048, timeout=180, container_idle_timeout=300)
+# Long-running workloads (deep research)
+LONG_RUNNING_CONFIG = dict(cpu=2.0, memory=4096, timeout=3600, container_idle_timeout=600)
+
+# =============================================================================
+# PRODUCTION INFRASTRUCTURE
+# =============================================================================
+
+def get_redis_client():
+    """Get Upstash Redis client (returns None if not configured)."""
+    url = os.environ.get("UPSTASH_REDIS_URL")
+    token = os.environ.get("UPSTASH_REDIS_TOKEN")
+    if not url or not token:
+        return None
+    try:
+        from upstash_redis import Redis
+        return Redis(url=url, token=token)
+    except Exception:
+        return None
+
+def get_rate_limiter():
+    """Get Upstash rate limiter (returns None if not configured)."""
+    redis = get_redis_client()
+    if not redis:
+        return None
+    try:
+        from upstash_ratelimit import Ratelimit, SlidingWindow
+        return Ratelimit(
+            redis=redis,
+            limiter=SlidingWindow(max_requests=100, window=60),  # 100 req/min per IP
+        )
+    except Exception:
+        return None
+
+def check_rate_limit(identifier: str) -> dict | None:
+    """
+    Check rate limit for an identifier (e.g., IP address).
+    Returns error dict if rate limited, None if allowed.
+    """
+    limiter = get_rate_limiter()
+    if not limiter:
+        return None  # No rate limiting configured, allow all
+    try:
+        result = limiter.limit(identifier)
+        if not result.allowed:
+            return {
+                "error": "Rate limit exceeded. Please try again later.",
+                "retry_after": result.reset - time.time(),
+            }
+        return None
+    except Exception:
+        return None  # On error, allow request
+
+def init_sentry():
+    """Initialize Sentry error tracking if configured."""
+    dsn = os.environ.get("SENTRY_DSN")
+    if dsn:
+        try:
+            import sentry_sdk
+            sentry_sdk.init(
+                dsn=dsn,
+                traces_sample_rate=0.1,
+                profiles_sample_rate=0.1,
+            )
+        except Exception:
+            pass
+
+# Initialize Sentry on import
+init_sentry()
+
 # Shared image with all dependencies
 image = (
     modal.Image.debian_slim(python_version="3.11")
@@ -18,6 +96,11 @@ image = (
         "google-genai>=1.0.0",
         "pydantic",
         "fastapi[standard]",
+        # Production infrastructure
+        "upstash-redis>=1.0.0",  # Serverless Redis for caching
+        "upstash-ratelimit>=1.0.0",  # Rate limiting
+        "sentry-sdk[fastapi]>=1.0.0",  # Error tracking
+        "boto3>=1.34.0",  # S3/R2 for image storage
     )
     .add_local_file("llm.py", "/root/llm.py", copy=True)
     .add_local_file("quiz.py", "/root/quiz.py", copy=True)
@@ -29,13 +112,18 @@ image = (
 # CORE ENDPOINTS
 # =============================================================================
 
-@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")])
+@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")], **STANDARD_CONFIG)
 @modal.fastapi_endpoint(method="POST")
 def generate(data: dict) -> dict:
     """
     Generate an answer using Gemini with Google Search grounding.
     No longer requires separate search - uses built-in Google Search tool.
     """
+    # Rate limiting (if Upstash configured)
+    rate_limit_error = check_rate_limit(f"generate:{hash(data.get('question', ''))}")
+    if rate_limit_error:
+        return rate_limit_error
+
     import sys
     sys.path.insert(0, "/root")
     from llm import generate_answer
@@ -43,10 +131,14 @@ def generate(data: dict) -> dict:
     return generate_answer(question)
 
 
-@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")])
+@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")], **HEAVY_CONFIG)
 @modal.fastapi_endpoint(method="POST")
 def image_gen(data: dict) -> dict:
     """Generate an educational image using Gemini."""
+    rate_limit_error = check_rate_limit(f"image_gen:{hash(data.get('question', ''))}")
+    if rate_limit_error:
+        return rate_limit_error
+
     import sys
     sys.path.insert(0, "/root")
     from image_gen import generate_image
@@ -55,10 +147,14 @@ def image_gen(data: dict) -> dict:
     return generate_image(question, summary)
 
 
-@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")])
+@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")], **STANDARD_CONFIG)
 @modal.fastapi_endpoint(method="POST")
 def quiz(data: dict) -> dict:
     """Generate a 10-question mastery quiz with structured output."""
+    rate_limit_error = check_rate_limit(f"quiz:{hash(data.get('question', ''))}")
+    if rate_limit_error:
+        return rate_limit_error
+
     import sys
     sys.path.insert(0, "/root")
     from quiz import generate_quiz
@@ -68,7 +164,7 @@ def quiz(data: dict) -> dict:
     return generate_quiz(question, answer, difficulty)
 
 
-@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")])
+@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")], **LIGHT_CONFIG)
 @modal.fastapi_endpoint(method="POST")
 def validate_answer(data: dict) -> dict:
     """
@@ -174,7 +270,7 @@ Reply with ONLY: YES or NO"""
 # TEXT-TO-SPEECH
 # =============================================================================
 
-@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")])
+@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")], **HEAVY_CONFIG)
 @modal.fastapi_endpoint(method="POST")
 def speak(data: dict) -> dict:
     """
@@ -259,7 +355,7 @@ def speak(data: dict) -> dict:
 # URL CONTEXT - Study web articles
 # =============================================================================
 
-@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")])
+@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")], **STANDARD_CONFIG)
 @modal.fastapi_endpoint(method="POST")
 def study_url(data: dict) -> dict:
     """
@@ -318,7 +414,7 @@ def study_url(data: dict) -> dict:
 # PDF/DOCUMENT UPLOAD
 # =============================================================================
 
-@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")])
+@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")], **HEAVY_CONFIG)
 @modal.fastapi_endpoint(method="POST")
 def upload_document(data: dict) -> dict:
     """
@@ -365,7 +461,7 @@ def upload_document(data: dict) -> dict:
         return {"error": str(e)}
 
 
-@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")])
+@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")], **STANDARD_CONFIG)
 @modal.fastapi_endpoint(method="POST")
 def study_document(data: dict) -> dict:
     """
@@ -416,7 +512,7 @@ def study_document(data: dict) -> dict:
 # CODE EXECUTION - Math & Science
 # =============================================================================
 
-@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")])
+@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")], **HEAVY_CONFIG)
 @modal.fastapi_endpoint(method="POST")
 def solve(data: dict) -> dict:
     """
@@ -491,10 +587,39 @@ Provide:
 # CONTEXT CACHING - Follow-up questions
 # =============================================================================
 
-# In-memory cache for chat sessions (use Redis in production)
-_chat_cache = {}
+# Fallback in-memory cache (used when Redis not configured)
+_chat_cache_fallback = {}
 
-@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")])
+def get_chat_history(session_id: str) -> list | None:
+    """Get chat history from Redis (or fallback cache)."""
+    redis = get_redis_client()
+    if redis:
+        try:
+            data = redis.get(f"chat:{session_id}")
+            if data:
+                return json.loads(data)
+        except Exception:
+            pass
+    return _chat_cache_fallback.get(session_id)
+
+def set_chat_history(session_id: str, history: list, ttl: int = 3600):
+    """Store chat history in Redis (or fallback cache). TTL in seconds."""
+    redis = get_redis_client()
+    if redis:
+        try:
+            redis.setex(f"chat:{session_id}", ttl, json.dumps(history))
+            return
+        except Exception:
+            pass
+    # Fallback to in-memory (with simple size limit)
+    if len(_chat_cache_fallback) > 100:
+        # Remove oldest entries
+        oldest = list(_chat_cache_fallback.keys())[:50]
+        for k in oldest:
+            del _chat_cache_fallback[k]
+    _chat_cache_fallback[session_id] = history
+
+@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")], **STANDARD_CONFIG)
 @modal.fastapi_endpoint(method="POST")
 def follow_up(data: dict) -> dict:
     """
@@ -526,12 +651,12 @@ def follow_up(data: dict) -> dict:
         client = genai.Client(api_key=api_key)
 
         # Create or retrieve chat session
-        if session_id and session_id in _chat_cache:
+        cached_history = get_chat_history(session_id) if session_id else None
+        if cached_history:
             # Retrieve existing chat history and create new chat with it
-            history = _chat_cache[session_id]
             chat = client.chats.create(
                 model="gemini-2.5-flash",
-                history=history
+                history=cached_history
             )
         else:
             # Create new session
@@ -551,11 +676,13 @@ def follow_up(data: dict) -> dict:
         # Send the question
         response = chat.send_message(question)
 
-        # Cache the chat history (limit to last 20 turns)
+        # Cache the chat history (limit to last 20 turns, 1 hour TTL)
         history = chat.get_history()
         if len(history) > 20:
             history = history[-20:]
-        _chat_cache[session_id] = history
+        # Convert to serializable format
+        serializable_history = [{"role": h.role, "parts": [p.text for p in h.parts if hasattr(p, 'text')]} for h in history]
+        set_chat_history(session_id, serializable_history, ttl=3600)
 
         return {
             "answer": response.text,
@@ -571,7 +698,7 @@ def follow_up(data: dict) -> dict:
 # FILE SEARCH / RAG - Multi-document courses
 # =============================================================================
 
-@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")])
+@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")], **STANDARD_CONFIG)
 @modal.fastapi_endpoint(method="POST")
 def create_course(data: dict) -> dict:
     """
@@ -605,7 +732,7 @@ def create_course(data: dict) -> dict:
         return {"error": str(e)}
 
 
-@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")])
+@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")], **STANDARD_CONFIG)
 @modal.fastapi_endpoint(method="POST")
 def add_to_course(data: dict) -> dict:
     """
@@ -648,7 +775,7 @@ def add_to_course(data: dict) -> dict:
         return {"error": str(e)}
 
 
-@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")])
+@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")], **STANDARD_CONFIG)
 @modal.fastapi_endpoint(method="POST")
 def search_course(data: dict) -> dict:
     """
@@ -713,7 +840,7 @@ def search_course(data: dict) -> dict:
 # DEEP RESEARCH - Premium feature
 # =============================================================================
 
-@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")], timeout=3600)
+@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")], **LONG_RUNNING_CONFIG)
 @modal.fastapi_endpoint(method="POST")
 def deep_research(data: dict) -> dict:
     """
@@ -780,7 +907,7 @@ def deep_research(data: dict) -> dict:
         return {"error": str(e)}
 
 
-@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")])
+@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")], **LIGHT_CONFIG)
 @modal.fastapi_endpoint(method="POST")
 def research_status(data: dict) -> dict:
     """
@@ -828,7 +955,7 @@ def research_status(data: dict) -> dict:
 # LEGACY ENDPOINT (for backward compatibility)
 # =============================================================================
 
-@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")])
+@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")], **STANDARD_CONFIG)
 @modal.fastapi_endpoint(method="POST")
 def search(data: dict) -> dict:
     """
