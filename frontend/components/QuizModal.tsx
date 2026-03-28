@@ -256,11 +256,11 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
   return (
     <div className={`
       fixed inset-0 z-50
-      flex items-center justify-center
+      flex items-start sm:items-center justify-center
       sm:p-4
       bg-[hsl(var(--bg-deep))]
       animate-crt-boot
-      overflow-hidden
+      overflow-y-auto sm:overflow-hidden
       ${screenFlash === "correct" ? "animate-flash-green" : ""}
       ${screenFlash === "wrong" ? "animate-flash-red" : ""}
     `}>
@@ -417,22 +417,22 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
               </p>
 
               {/* Score display - Arcade style */}
-              <div className="inline-block bg-[hsl(var(--bg-deep))] border-2 border-[hsl(var(--border))] p-4 mb-6">
-                <div className="flex items-center justify-center gap-6">
+              <div className="inline-block bg-[hsl(var(--bg-deep))] border-2 border-[hsl(var(--border))] p-3 sm:p-4 mb-6 max-w-full">
+                <div className="flex items-center justify-center gap-3 sm:gap-6">
                   <div className="text-center">
-                    <div className="font-display text-2xl text-[hsl(var(--neon-cyan))]">{score}/{quiz.questions.length}</div>
+                    <div className="font-display text-xl sm:text-2xl text-[hsl(var(--neon-cyan))]">{score}/{quiz.questions.length}</div>
                     <div className="font-accent text-[10px] text-[hsl(var(--text-muted))] tracking-wider">SCORE</div>
                   </div>
-                  <div className="w-px h-10 bg-[hsl(var(--border))]" />
+                  <div className="w-px h-8 sm:h-10 bg-[hsl(var(--border))]" />
                   <div className="text-center">
-                    <div className="font-display text-2xl text-[hsl(var(--neon-magenta))]">{totalAttempts}</div>
+                    <div className="font-display text-xl sm:text-2xl text-[hsl(var(--neon-magenta))]">{totalAttempts}</div>
                     <div className="font-accent text-[10px] text-[hsl(var(--text-muted))] tracking-wider">ATTEMPTS</div>
                   </div>
                   {totalXPGained > 0 && (
                     <>
-                      <div className="w-px h-10 bg-[hsl(var(--border))]" />
+                      <div className="w-px h-8 sm:h-10 bg-[hsl(var(--border))]" />
                       <div className="text-center">
-                        <div className="font-display text-2xl text-[hsl(var(--neon-green))]">+{totalXPGained}</div>
+                        <div className="font-display text-xl sm:text-2xl text-[hsl(var(--neon-green))]">+{totalXPGained}</div>
                         <div className="font-accent text-[10px] text-[hsl(var(--text-muted))] tracking-wider">XP</div>
                       </div>
                     </>
