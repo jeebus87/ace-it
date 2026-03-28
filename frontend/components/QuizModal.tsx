@@ -575,7 +575,7 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
               {showFeedback && (
                 <div className={`
                   p-4 mb-6
-                  border-2
+                  border-2 overflow-hidden
                   ${isCorrect || typedCorrect
                     ? "border-[hsl(var(--neon-green))] bg-[hsl(var(--neon-green))]/5"
                     : "border-[hsl(var(--neon-red))] bg-[hsl(var(--neon-red))]/5"
@@ -586,7 +586,7 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
                       ? <CheckCircle className="w-5 h-5 text-[hsl(var(--neon-green))] shrink-0 mt-0.5" />
                       : <XCircle className="w-5 h-5 text-[hsl(var(--neon-red))] shrink-0 mt-0.5" />
                     }
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <p className={`font-display text-xs mb-2 ${isCorrect || typedCorrect ? "text-[hsl(var(--neon-green))]" : "text-[hsl(var(--neon-red))]"}`}>
                         {isCorrect
                           ? (attempts[currentIndex] === 1 ? "PERFECT!" : "CORRECT!")
@@ -595,7 +595,7 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
                             : "WRONG!"
                         }
                       </p>
-                      <p className="font-body text-sm text-[hsl(var(--text-primary))]">
+                      <p className="font-body text-sm text-[hsl(var(--text-primary))] break-words">
                         {currentQuestion.explanation}
                       </p>
 
@@ -614,7 +614,7 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
                               placeholder="Type here..."
                               disabled={validating}
                               className={`
-                                flex-1 min-w-0 px-4 py-3
+                                w-full sm:flex-1 min-w-0 px-4 py-3
                                 font-body text-sm
                                 bg-[hsl(var(--bg-deep))]
                                 border-2 border-[hsl(var(--border))]
