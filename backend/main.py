@@ -8,6 +8,8 @@ import os
 import json
 import base64
 import time
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 
 app = modal.App("ace-it-backend")
 
@@ -15,41 +17,57 @@ app = modal.App("ace-it-backend")
 # RESOURCE CONFIGURATIONS - Production-grade limits
 # =============================================================================
 # Light workloads (validation, simple queries)
-LIGHT_CONFIG = dict(cpu=0.5, memory=512, timeout=30, scaledown_window=300)
+LIGHT_CONFIG = dict(cpu=0.5, memory=512, timeout=30)
 # Standard workloads (answer generation, quiz generation)
-STANDARD_CONFIG = dict(cpu=1.0, memory=1024, timeout=120, scaledown_window=300)
+STANDARD_CONFIG = dict(cpu=1.0, memory=1024, timeout=120)
 # Heavy workloads (image generation, file processing)
-HEAVY_CONFIG = dict(cpu=1.0, memory=2048, timeout=180, scaledown_window=300)
+HEAVY_CONFIG = dict(cpu=1.0, memory=2048, timeout=180)
 # Long-running workloads (deep research)
-LONG_RUNNING_CONFIG = dict(cpu=2.0, memory=4096, timeout=3600, scaledown_window=600)
+LONG_RUNNING_CONFIG = dict(cpu=2.0, memory=4096, timeout=3600)
 
 # =============================================================================
 # PRODUCTION INFRASTRUCTURE
 # =============================================================================
 
+_redis_client = None
+_redis_checked = False
+
 def get_redis_client():
-    """Get Upstash Redis client (returns None if not configured)."""
+    """Get cached Upstash Redis client (returns None if not configured)."""
+    global _redis_client, _redis_checked
+    if _redis_checked:
+        return _redis_client
+    _redis_checked = True
     url = os.environ.get("UPSTASH_REDIS_URL")
     token = os.environ.get("UPSTASH_REDIS_TOKEN")
     if not url or not token:
         return None
     try:
         from upstash_redis import Redis
-        return Redis(url=url, token=token)
+        _redis_client = Redis(url=url, token=token)
+        return _redis_client
     except Exception:
         return None
 
+_rate_limiter = None
+_limiter_checked = False
+
 def get_rate_limiter():
-    """Get Upstash rate limiter (returns None if not configured)."""
+    """Get cached Upstash rate limiter (returns None if not configured)."""
+    global _rate_limiter, _limiter_checked
+    if _limiter_checked:
+        return _rate_limiter
+    _limiter_checked = True
     redis = get_redis_client()
     if not redis:
         return None
     try:
         from upstash_ratelimit import Ratelimit, SlidingWindow
-        return Ratelimit(
+        _rate_limiter = Ratelimit(
             redis=redis,
             limiter=SlidingWindow(max_requests=100, window=60),  # 100 req/min per IP
         )
+        return _rate_limiter
     except Exception:
         return None
 
@@ -109,54 +127,74 @@ image = (
 
 
 # =============================================================================
-# CORE ENDPOINTS
+# FRONTEND API - Single FastAPI app with CORS (one cold start warms all routes)
 # =============================================================================
 
-@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")], **STANDARD_CONFIG)
-@modal.fastapi_endpoint(method="POST")
-def generate(data: dict) -> dict:
-    """
-    Generate an answer using Gemini with Google Search grounding.
-    No longer requires separate search - uses built-in Google Search tool.
-    """
-    # Rate limiting (if Upstash configured)
+web_app = FastAPI()
+web_app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://ace-it.juridionai.com", "http://localhost:3000"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+def _ensure_path():
+    """Add /root to sys.path once (where Modal places local modules)."""
+    import sys
+    if "/root" not in sys.path:
+        sys.path.insert(0, "/root")
+
+
+@web_app.get("/warmup")
+def warmup_route():
+    """Wake up the container and pre-import heavy modules."""
+    import importlib
+    _ensure_path()
+    importlib.import_module("llm")
+    importlib.import_module("quiz")
+    importlib.import_module("image_gen")
+    return {"status": "warm"}
+
+
+@web_app.post("/generate")
+async def generate_route(request: Request):
+    """Generate an answer using Gemini with Google Search grounding."""
+    data = await request.json()
     rate_limit_error = check_rate_limit(f"generate:{hash(data.get('question', ''))}")
     if rate_limit_error:
         return rate_limit_error
 
-    import sys
-    sys.path.insert(0, "/root")
+    _ensure_path()
     from llm import generate_answer
     question = data.get("question", "")
     return generate_answer(question)
 
 
-@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")], **HEAVY_CONFIG)
-@modal.fastapi_endpoint(method="POST")
-def image_gen(data: dict) -> dict:
+@web_app.post("/image-gen")
+async def image_gen_route(request: Request):
     """Generate an educational image using Gemini."""
+    data = await request.json()
     rate_limit_error = check_rate_limit(f"image_gen:{hash(data.get('question', ''))}")
     if rate_limit_error:
         return rate_limit_error
 
-    import sys
-    sys.path.insert(0, "/root")
+    _ensure_path()
     from image_gen import generate_image
     question = data.get("question", "")
     summary = data.get("summary", "")
     return generate_image(question, summary)
 
 
-@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")], **STANDARD_CONFIG)
-@modal.fastapi_endpoint(method="POST")
-def quiz(data: dict) -> dict:
+@web_app.post("/quiz")
+async def quiz_route(request: Request):
     """Generate a 10-question mastery quiz with structured output."""
+    data = await request.json()
     rate_limit_error = check_rate_limit(f"quiz:{hash(data.get('question', ''))}")
     if rate_limit_error:
         return rate_limit_error
 
-    import sys
-    sys.path.insert(0, "/root")
+    _ensure_path()
     from quiz import generate_quiz
     question = data.get("question", "")
     answer = data.get("answer", "")
@@ -164,23 +202,15 @@ def quiz(data: dict) -> dict:
     return generate_quiz(question, answer, difficulty)
 
 
-@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")], **LIGHT_CONFIG)
-@modal.fastapi_endpoint(method="POST")
-def validate_answer(data: dict) -> dict:
-    """
-    Validate if a typed answer is acceptable using Gemini Flash.
-    Used when user types answer after getting a quiz question wrong.
+@web_app.post("/validate-answer")
+async def validate_answer_route(request: Request):
+    """Validate if a typed answer is acceptable using Gemini Flash."""
+    data = await request.json()
+    rate_limit_error = check_rate_limit(f"validate:{hash(data.get('typed', ''))}")
+    if rate_limit_error:
+        return rate_limit_error
 
-    Args:
-        typed: The user's typed answer
-        correct: The correct answer text
-        question: The quiz question (for context)
-
-    Returns:
-        Dict with is_correct boolean and explanation
-    """
     from google import genai
-    from google.genai import types
 
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
@@ -248,8 +278,8 @@ Reply with ONLY: YES or NO"""
                 if hasattr(candidate.content, 'parts') and candidate.content.parts:
                     response_text = candidate.content.parts[0].text
 
-        answer = response_text.strip().upper() if response_text else ""
-        is_correct = answer.startswith("YES")
+        answer_text = response_text.strip().upper() if response_text else ""
+        is_correct = answer_text.startswith("YES")
 
         return {
             "is_correct": is_correct,
@@ -264,6 +294,13 @@ Reply with ONLY: YES or NO"""
             "error": str(e),
             "fallback": True
         }
+
+
+@app.function(image=image, secrets=[modal.Secret.from_name("gemini-api-key")], **HEAVY_CONFIG)
+@modal.asgi_app()
+def api():
+    """Serves all frontend-facing endpoints with CORS support."""
+    return web_app
 
 
 # =============================================================================
@@ -962,8 +999,7 @@ def search(data: dict) -> dict:
     Legacy search endpoint - now redirects to generate with Google Search.
     Kept for backward compatibility.
     """
-    import sys
-    sys.path.insert(0, "/root")
+    _ensure_path()
     from llm import generate_answer
     query = data.get("query", "")
     # Return minimal response for backward compatibility

@@ -8,6 +8,7 @@ import { QuizProgress } from "./HistorySidebar";
 import { useSound } from "@/hooks/useSound";
 import { isFuzzyMatch } from "@/lib/fuzzy-match";
 import { fetchWithRetry } from "@/lib/fetch-with-retry";
+import { API_BASE } from "@/lib/api";
 
 interface Question {
   id: number;
@@ -201,11 +202,19 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
     setPortalRoot(document.getElementById("modal-root"));
   }, []);
 
-  // Wrapper to stop completion sounds when closing
-  const handleClose = () => {
+  const stopCompletionSounds = () => {
     stopRocky();
     stopApplause();
+  };
+
+  const handleClose = () => {
+    stopCompletionSounds();
     onClose();
+  };
+
+  const handleNewQuiz = () => {
+    stopCompletionSounds();
+    onRedoQuiz?.();
   };
 
   if (!open || !quiz) return null;
@@ -249,7 +258,7 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
     setValidating(true);
     try {
       const response = await fetchWithRetry(
-        "https://jeebus87--ace-it-backend-validate-answer.modal.run",
+        `${API_BASE}/validate-answer`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -496,7 +505,7 @@ export function QuizModal({ open, onClose, quiz, initialProgress, onProgressChan
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 {onRedoQuiz && (
                   <button
-                    onClick={onRedoQuiz}
+                    onClick={handleNewQuiz}
                     className={`
                       px-6 py-4
                       font-display text-sm

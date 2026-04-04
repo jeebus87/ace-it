@@ -18,6 +18,7 @@ import { useXP } from "@/hooks/useXP";
 import { useStats } from "@/hooks/useStats";
 import { LevelBadge } from "@/components/LevelBadge";
 import { fetchWithRetry } from "@/lib/fetch-with-retry";
+import { API_BASE } from "@/lib/api";
 
 interface Question {
   id: number;
@@ -84,6 +85,10 @@ export default function Home() {
 
   // Cap history to prevent localStorage overflow (~5-10MB limit, images are ~100KB+ each)
   const MAX_HISTORY_ITEMS = 50;
+
+  useEffect(() => {
+    fetch(`${API_BASE}/warmup`).catch(() => {});
+  }, []);
 
   // Load history from localStorage on mount (with cleanup for oversized data)
   useEffect(() => {
@@ -174,15 +179,7 @@ export default function Home() {
   ) => {
     setQuizGenerating(true);
     try {
-      // Warm up the validation endpoint in parallel (fire-and-forget)
-      // This eliminates cold start latency when user actually needs validation
-      fetch("https://jeebus87--ace-it-backend-validate-answer.modal.run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ typed: "warmup", correct: "warmup", question: "warmup" }),
-      }).catch(() => {}); // Ignore errors, this is just a warm-up
-
-      const quizRes = await fetchWithRetry("https://jeebus87--ace-it-backend-quiz.modal.run", {
+      const quizRes = await fetchWithRetry(`${API_BASE}/quiz`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -256,7 +253,7 @@ export default function Home() {
 
     try {
       // 1. Generate answer with Google Search grounding (single API call)
-      const answerRes = await fetchWithRetry("https://jeebus87--ace-it-backend-generate.modal.run", {
+      const answerRes = await fetchWithRetry(`${API_BASE}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question: query }),
@@ -278,7 +275,7 @@ export default function Home() {
       // 2. Generate image in background (don't block the flow)
       (async () => {
         try {
-          const imageRes = await fetchWithRetry("https://jeebus87--ace-it-backend-image-gen.modal.run", {
+          const imageRes = await fetchWithRetry(`${API_BASE}/image-gen`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

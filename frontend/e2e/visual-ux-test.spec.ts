@@ -479,12 +479,12 @@ test.describe("Visual UX/UI Test - All Screens", () => {
 // API ENDPOINT TESTS - New Gemini Features
 // ========================================
 test.describe("API Endpoint Tests - Gemini Features", () => {
-  const API_BASE = "https://jeebus87--ace-it-backend";
+  const API_BASE = "https://jeebus87--ace-it-backend-api.modal.run";
 
   test("Generate endpoint uses Google Search grounding", async ({ request }) => {
     console.log("Testing /generate with Google Search grounding...");
 
-    const response = await request.post(`${API_BASE}-generate.modal.run`, {
+    const response = await request.post(`${API_BASE}/generate`, {
       data: { question: "What is photosynthesis?" },
       timeout: 120000,
     });
@@ -507,7 +507,7 @@ test.describe("API Endpoint Tests - Gemini Features", () => {
   test("Generate endpoint returns numbered real-world examples", async ({ request }) => {
     console.log("Testing /generate for numbered Real-World Examples...");
 
-    const response = await request.post(`${API_BASE}-generate.modal.run`, {
+    const response = await request.post(`${API_BASE}/generate`, {
       data: { question: "What are the amendments in the Bill of Rights?" },
       timeout: 120000,
     });
@@ -539,7 +539,7 @@ test.describe("API Endpoint Tests - Gemini Features", () => {
   test("Quiz endpoint returns structured output", async ({ request }) => {
     console.log("Testing /quiz with structured output...");
 
-    const response = await request.post(`${API_BASE}-quiz.modal.run`, {
+    const response = await request.post(`${API_BASE}/quiz`, {
       data: {
         question: "What is photosynthesis?",
         answer: "Photosynthesis is the process by which plants convert sunlight into energy.",
@@ -575,7 +575,7 @@ test.describe("API Endpoint Tests - Gemini Features", () => {
   test("TTS endpoint responds", async ({ request }) => {
     console.log("Testing /speak TTS endpoint...");
 
-    const response = await request.post(`${API_BASE}-speak.modal.run`, {
+    const response = await request.post(`${API_BASE}/speak`, {
       data: {
         text: "Hello, this is a test of the text to speech feature.",
         voice: "Puck",
@@ -600,7 +600,7 @@ test.describe("API Endpoint Tests - Gemini Features", () => {
   test("Code execution endpoint responds", async ({ request }) => {
     console.log("Testing /solve code execution endpoint...");
 
-    const response = await request.post(`${API_BASE}-solve.modal.run`, {
+    const response = await request.post(`${API_BASE}/solve`, {
       data: {
         problem: "Calculate the factorial of 5",
       },
@@ -631,7 +631,7 @@ test.describe("API Endpoint Tests - Gemini Features", () => {
     console.log("Testing /follow-up context caching...");
 
     // First question
-    const response1 = await request.post(`${API_BASE}-follow-up.modal.run`, {
+    const response1 = await request.post(`${API_BASE}/follow-up`, {
       data: {
         question: "What is the capital of France?",
         context: "We are studying European geography.",
@@ -645,7 +645,7 @@ test.describe("API Endpoint Tests - Gemini Features", () => {
       expect(data1.session_id).toBeTruthy();
 
       // Follow-up question using session
-      const response2 = await request.post(`${API_BASE}-follow-up.modal.run`, {
+      const response2 = await request.post(`${API_BASE}/follow-up`, {
         data: {
           session_id: data1.session_id,
           question: "What about Germany?",
@@ -673,7 +673,7 @@ test.describe("API Endpoint Tests - Gemini Features", () => {
     console.log("Testing /validate-answer with Gemini Flash...");
 
     // Test 1: Exact match should pass
-    const exactMatch = await request.post(`${API_BASE}-validate-answer.modal.run`, {
+    const exactMatch = await request.post(`${API_BASE}/validate-answer`, {
       data: {
         typed: "photosynthesis",
         correct: "photosynthesis",
@@ -686,7 +686,7 @@ test.describe("API Endpoint Tests - Gemini Features", () => {
     console.log("  Exact match: PASSED");
 
     // Test 2: Typo should pass
-    const typoMatch = await request.post(`${API_BASE}-validate-answer.modal.run`, {
+    const typoMatch = await request.post(`${API_BASE}/validate-answer`, {
       data: {
         typed: "photosynthisis",
         correct: "photosynthesis",
@@ -699,7 +699,7 @@ test.describe("API Endpoint Tests - Gemini Features", () => {
     console.log("  Typo (photosynthisis): PASSED");
 
     // Test 3: Synonym/paraphrase should pass
-    const synonymMatch = await request.post(`${API_BASE}-validate-answer.modal.run`, {
+    const synonymMatch = await request.post(`${API_BASE}/validate-answer`, {
       data: {
         typed: "the powerhouse of the cell",
         correct: "mitochondria",
@@ -712,7 +712,7 @@ test.describe("API Endpoint Tests - Gemini Features", () => {
     console.log("  Synonym (powerhouse of cell = mitochondria): PASSED");
 
     // Test 4: Missing article should pass
-    const missingArticle = await request.post(`${API_BASE}-validate-answer.modal.run`, {
+    const missingArticle = await request.post(`${API_BASE}/validate-answer`, {
       data: {
         typed: "cell membrane",
         correct: "The cell membrane",
@@ -725,7 +725,7 @@ test.describe("API Endpoint Tests - Gemini Features", () => {
     console.log("  Missing article: PASSED");
 
     // Test 5: Wrong answer should be rejected
-    const wrongAnswer = await request.post(`${API_BASE}-validate-answer.modal.run`, {
+    const wrongAnswer = await request.post(`${API_BASE}/validate-answer`, {
       data: {
         typed: "nucleus",
         correct: "mitochondria",
